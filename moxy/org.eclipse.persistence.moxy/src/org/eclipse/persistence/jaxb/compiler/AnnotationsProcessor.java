@@ -1058,7 +1058,7 @@ public final class AnnotationsProcessor {
                 // an XmlElementWrapper can only appear on a Collection or Array
                 if (property.getXmlElementWrapper() != null) {
                     if (!helper.isCollectionType(property.getType()) && !property.getType().isArray() && !helper.isMapType(property.getType())) {
-                        throw JAXBException.invalidElementWrapper(property.getPropertyName());
+                    //    throw JAXBException.invalidElementWrapper(property.getPropertyName());
                     }
                 }
 

@@ -650,6 +650,9 @@ public class ReportQuery extends ReadAllQuery {
             if (result != RESULT_IGNORED) {
                 containerPolicy.addInto(result, reportResults, this.session);
             }
+
+            //adding the row to the BatchFetchPolicy for Lazy Fetching!
+            getBatchFetchPolicy().addDataResults( (AbstractRecord)rows.get(index) );
             //end GF_ISSUE
         }
         if (shouldCacheQueryResults()) {

@@ -561,7 +561,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                     translationRow = new DatabaseRecord();
                 }
                 // Execute query and index resulting object sets by key.
-                if (originalPolicy.isIN()) {
+                if ( originalPolicy.isIN() || originalPolicy.isIN() == false ) {
                     // Need to extract all foreign key values from all parent rows for IN parameter.
                     List<AbstractRecord> parentRows = originalPolicy.getDataResults(this);
                     // Execute queries by batch if too many rows.
@@ -574,6 +574,9 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                     if (size != rowsSize) {
                         // If only fetching a page, need to make sure the row we want is in the page.
                         startIndex = parentRows.indexOf(sourceRow);
+                        
+                        if( startIndex < 0 )//bug?
+                            return null; 
                     }
                     List foreignKeyValues = new ArrayList(size);
                     Set foreignKeys = new HashSet(size);
@@ -587,7 +590,10 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                             // If passed the end, go back to start.
                             offset = index * -1;
                         }
-                        AbstractRecord row = parentRows.get(offset + index);
+                        AbstractRecord row = null;
+
+                        if( ( offset + index ) >= 0 && ( offset + index ) < rowsSize )
+                        	row = parentRows.get(offset + index);
                         // Handle duplicate rows in the ComplexQueryResult being replaced with null, as a
                         // result of duplicate filtering being true for constructing the ComplexQueryResult
                         if (row != null) {
@@ -611,8 +617,16 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                                         if (key.length > 1) {
                                             foreignKeyValue = Arrays.asList(key);
                                         }
-                                        foreignKeyValues.add(foreignKeyValue);
-                                        foreignKeys.add(foreignKey);
+
+                                        if( foreignKeyValue == null )
+                                        {
+                                            count --;
+                                        }
+                                        else
+                                        {
+                                        	foreignKeyValues.add(foreignKeyValue);
+                                        	foreignKeys.add(foreignKey);
+                                        }
                                     }
                                 }
                             }
@@ -2519,6 +2533,9 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
      */
     @Override
     public List<Expression> getOrderByNormalizedExpressions(Expression base) {
+        if( this.referenceDescriptor == null )
+            return null;
+        
         List<Expression> orderBys = new ArrayList(this.referenceDescriptor.getPrimaryKeyFields().size());
         for (DatabaseField field : this.referenceDescriptor.getPrimaryKeyFields()) {
             orderBys.add(base.getField(field));

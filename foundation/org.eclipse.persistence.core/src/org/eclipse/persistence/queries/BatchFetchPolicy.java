@@ -253,6 +253,10 @@ public class BatchFetchPolicy implements Serializable, Cloneable {
             result = this.dataResults.get(this);
             this.dataResults.put(mapping, result);
         }
+        else if( result.size() == 0 ) {
+            result = this.dataResults.get(this);
+            this.dataResults.put(mapping, result);
+        }
         return result;
     }
 

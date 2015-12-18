@@ -642,20 +642,30 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
             selectStatement.normalize(getSession(), getDescriptor(), clonedExpressions);
         }
 
+        int f = 0;
         //calculate indexes after normalize to insure expressions are set up correctly
-        for (Iterator items = reportQuery.getItems().iterator(); items.hasNext();){
+        for (Iterator items = reportQuery.getItems().iterator(); items.hasNext();)
+        {
             ReportItem item = (ReportItem)items.next();
 
-            if (item.isConstructorItem()) {
+            if (item.isConstructorItem())
+            {
                 ConstructorReportItem citem = (ConstructorReportItem)item;
                 List reportItems = citem.getReportItems();
                 int size = reportItems.size();
-                for (int i=0; i<size; i++) {
-                    item = (ReportItem)reportItems.get(i);
-                    itemOffset = computeAndSetItemOffset(item, itemOffset);
+                for (int i=0; i<size; i++)
+                {
+                    item = (ReportItem)reportItems.get( i );
+                    //get the related field
+                    Object field = selectStatement.getFields().get( f++ );
+                    itemOffset = computeAndSetItemOffset(item, field, itemOffset);
                 }
-            } else {
-                itemOffset = computeAndSetItemOffset(item, itemOffset);
+            }
+            else
+            {
+            	//get the related field
+            	Object field = selectStatement.getFields().get( f++ );
+                itemOffset = computeAndSetItemOffset(item, field, itemOffset);
             }
         }
 
@@ -666,23 +676,47 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
     /**
      * calculate indexes for an item, given the current Offset
      */
-    protected int computeAndSetItemOffset(ReportItem item, int itemOffset){
+    protected int computeAndSetItemOffset(ReportItem item, Object field, int itemOffset){
         item.setResultIndex(itemOffset);
-        if (item.getAttributeExpression() != null) {
-            if (item.hasJoining()){
-                itemOffset = item.getJoinedAttributeManager().computeJoiningMappingIndexes(true, getSession(), itemOffset);
-            } else {
-                if (item.getDescriptor() != null) {
-                    itemOffset += item.getDescriptor().getAllSelectionFields((ReportQuery)getQuery()).size();
-                } else {
-                    if (item.getMapping() != null && item.getMapping().isAggregateObjectMapping()) {
+        
+        if (item.getAttributeExpression() != null)
+        {
+            if (item.hasJoining())
+            {
+                itemOffset = item.getJoinedAttributeManager().computeJoiningMappingIndexes(true, getSession(), itemOffset) + 1;
+            }
+            else
+            {
+                if (item.getDescriptor() != null)
+                {
+                	//if field is Expression, use this to count
+                    if (field instanceof Expression) 
+                        itemOffset += ( ( Expression ) field ).getSelectionFields( (ReportQuery)getQuery() ).size();
+                    else
+                    	itemOffset += item.getDescriptor().getAllSelectionFields((ReportQuery)getQuery()).size();
+                }
+                else
+                {
+                    if (item.getMapping() != null && item.getMapping().isAggregateObjectMapping())
+                    {
                         itemOffset += item.getMapping().getFields().size(); // Aggregate object may consist out of 1..n fields
-                    } else {
+                    }
+                    else
+                    {
                         ++itemOffset; //only a single attribute can be selected
+                    }
+
+                    if (item.getMapping() != null && item.getMapping().isCollectionMapping() ) 
+                    {
+                        final Collection<?> additionalFields = item.getMapping().getContainerPolicy().getAdditionalFieldsForJoin( (CollectionMapping)item.getMapping() );
+
+                        if( additionalFields != null )
+                            itemOffset += additionalFields.size();
                     }
                 }
             }
         }
+        
         return itemOffset;
     }
 
