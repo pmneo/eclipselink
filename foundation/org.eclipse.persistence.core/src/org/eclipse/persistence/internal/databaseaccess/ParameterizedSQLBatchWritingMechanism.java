@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
+import org.eclipse.persistence.mappings.CollectionMapping;
 import org.eclipse.persistence.descriptors.DescriptorQueryManager;
 import org.eclipse.persistence.exceptions.DatabaseException;
 import org.eclipse.persistence.exceptions.OptimisticLockException;
@@ -27,6 +28,8 @@ import org.eclipse.persistence.internal.sessions.AbstractSession;
 import org.eclipse.persistence.logging.SessionLog;
 import org.eclipse.persistence.queries.ModifyQuery;
 import org.eclipse.persistence.sessions.SessionProfiler;
+import org.eclipse.persistence.queries.UpdateObjectQuery;
+import org.eclipse.persistence.exceptions.i18n.ExceptionMessageGenerator;
 
 /**
  * INTERNAL:
@@ -192,7 +195,7 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
             this.executionCount += this.databaseAccessor.executeJDK12BatchStatement(statement, this.lastCallAppended, session, true);
             this.databaseAccessor.writeStatementsCount++;
 
-            if (this.previousCalls.peekLast().hasOptimisticLock() && (this.executionCount != this.statementCount)) 
+            if (this.previousCalls.peekLast().hasOptimisticLock() && (this.executionCount != this.statementCount)) {
                 throw objectsChangedSinceLastReadWhenUpdating();
             }
         } finally {
