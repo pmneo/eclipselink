@@ -228,9 +228,9 @@ public abstract class ObjectReferenceMapping extends ForeignReferenceMapping {
         if ((cloneAttributeValue == backUpAttributeValue) && (!owner.isNew())) {// if it is new record the value
             return null;
         }
-
+        
         //support of multiple cloned values
-        if( session instanceof UnitOfWorkImpl )
+        if( backUpAttributeValue != null && session instanceof UnitOfWorkImpl )
         {
             final UnitOfWorkImpl uow = (UnitOfWorkImpl) session;
             

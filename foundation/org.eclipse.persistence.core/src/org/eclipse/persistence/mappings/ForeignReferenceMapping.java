@@ -336,7 +336,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
     public void buildCloneFromRow(AbstractRecord databaseRow, JoinedAttributeManager joinManager, Object clone, CacheKey sharedCacheKey, ObjectBuildingQuery sourceQuery, UnitOfWorkImpl unitOfWork, AbstractSession executionSession) {
         Boolean[] wasCacheUsed = new Boolean[]{Boolean.FALSE};
         Object attributeValue = valueFromRow(databaseRow, joinManager, sourceQuery, sharedCacheKey, executionSession, true, wasCacheUsed);
-        Object clonedAttributeValue = this.indirectionPolicy.cloneAttribute(attributeValue, null, sharedCacheKey,clone, null, unitOfWork, !wasCacheUsed[0].booleanValue());// building clone directly from row.
+        Object clonedAttributeValue = this.indirectionPolicy.cloneAttribute(attributeValue, null, sharedCacheKey,clone, null, unitOfWork, !wasCacheUsed[0]);// building clone directly from row.
         if (executionSession.isUnitOfWork() && sourceQuery.shouldRefreshIdentityMapResult()){
             // check whether the attribute is fully build before calling getAttributeValueFromObject because that
             // call may fully build the attribute
@@ -1132,9 +1132,9 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
     public boolean isLazy() {
         if (isLazy == null) {
             // False by default for mappings without indirection.
-            isLazy = Boolean.valueOf( usesIndirection() );
+            isLazy = usesIndirection();
         }
-        return isLazy.booleanValue();
+        return isLazy;
     }
 
     /**
@@ -1528,11 +1528,11 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
     public Object readFromRowIntoObject(AbstractRecord databaseRow, JoinedAttributeManager joinManager, Object targetObject, CacheKey parentCacheKey, ObjectBuildingQuery sourceQuery, AbstractSession executionSession, boolean isTargetProtected) throws DatabaseException {
         Boolean[] wasCacheUsed = new Boolean[]{Boolean.FALSE};
         Object attributeValue = valueFromRow(databaseRow, joinManager, sourceQuery, parentCacheKey, executionSession, isTargetProtected, wasCacheUsed);
-        if (wasCacheUsed[0].booleanValue()){
+        if (wasCacheUsed[0]){
             //must clone here as certain mappings require the clone object to clone the attribute.
             Integer refreshCascade = null;
             if (sourceQuery != null && sourceQuery.isObjectBuildingQuery() && sourceQuery.shouldRefreshIdentityMapResult()) {
-                refreshCascade = Integer.valueOf( sourceQuery.getCascadePolicy() );
+                refreshCascade = sourceQuery.getCascadePolicy();
             }
             attributeValue = this.indirectionPolicy.cloneAttribute(attributeValue, parentCacheKey.getObject(), parentCacheKey, targetObject, refreshCascade, executionSession, false);
         }
