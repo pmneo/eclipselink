@@ -181,9 +181,7 @@ public class DeleteObjectQuery extends ObjectLevelModifyQuery {
                             ClassDescriptor dependencyDescriptor = session.getDescriptor(dependency);
                             
                             if( dependencyDescriptor.isAggregateDescriptor() )
-                            {
                                 continue;
-                            }
                             
                             // PERF: Get the descriptor query, to avoid extra query creation.
                             DeleteObjectQuery deleteQuery = dependencyDescriptor.getQueryManager().getDeleteQuery();

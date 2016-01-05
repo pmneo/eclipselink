@@ -561,7 +561,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                     translationRow = new DatabaseRecord();
                 }
                 // Execute query and index resulting object sets by key.
-                if ( originalPolicy.isIN() || originalPolicy.isIN() == false ) {
+                if ( originalPolicy.isIN() ) { //causes errors in tests || originalPolicy.isIN() == false ) {
                     // Need to extract all foreign key values from all parent rows for IN parameter.
                     List<AbstractRecord> parentRows = originalPolicy.getDataResults(this);
                     // Execute queries by batch if too many rows.

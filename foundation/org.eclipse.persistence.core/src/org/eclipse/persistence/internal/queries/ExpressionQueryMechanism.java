@@ -645,25 +645,20 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
 
         int f = 0;
         //calculate indexes after normalize to insure expressions are set up correctly
-        for (Iterator items = reportQuery.getItems().iterator(); items.hasNext();)
-        {
+        for (Iterator items = reportQuery.getItems().iterator(); items.hasNext();){
             ReportItem item = (ReportItem)items.next();
 
-            if (item.isConstructorItem())
-            {
+            if (item.isConstructorItem()) {
                 ConstructorReportItem citem = (ConstructorReportItem)item;
                 List reportItems = citem.getReportItems();
                 int size = reportItems.size();
-                for (int i=0; i<size; i++)
-                {
+                for (int i=0; i<size; i++) {
                     item = (ReportItem)reportItems.get( i );
                     //get the related field
                     Object field = selectStatement.getFields().get( f++ );
                     itemOffset = computeAndSetItemOffset(item, field, itemOffset);
                 }
-            }
-            else
-            {
+            } else {
             	//get the related field
             	Object field = selectStatement.getFields().get( f++ );
                 itemOffset = computeAndSetItemOffset(item, field, itemOffset);
@@ -679,31 +674,20 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
      */
     protected int computeAndSetItemOffset(ReportItem item, Object field, int itemOffset){
         item.setResultIndex(itemOffset);
-        
-        if (item.getAttributeExpression() != null)
-        {
-            if (item.hasJoining())
-            {
+        if (item.getAttributeExpression() != null) {
+            if (item.hasJoining()){
                 itemOffset = item.getJoinedAttributeManager().computeJoiningMappingIndexes(true, getSession(), itemOffset) + 1;
-            }
-            else
-            {
-                if (item.getDescriptor() != null)
-                {
+            } else {
+                if (item.getDescriptor() != null) {
                 	//if field is Expression, use this to count
                     if (field instanceof Expression) 
                         itemOffset += ( ( Expression ) field ).getSelectionFields( (ReportQuery)getQuery() ).size();
                     else
                     	itemOffset += item.getDescriptor().getAllSelectionFields((ReportQuery)getQuery()).size();
-                }
-                else
-                {
-                    if (item.getMapping() != null && item.getMapping().isAggregateObjectMapping())
-                    {
+                } else {
+                    if (item.getMapping() != null && item.getMapping().isAggregateObjectMapping()) {
                         itemOffset += item.getMapping().getFields().size(); // Aggregate object may consist out of 1..n fields
-                    }
-                    else
-                    {
+                    } else {
                         ++itemOffset; //only a single attribute can be selected
                     }
 
