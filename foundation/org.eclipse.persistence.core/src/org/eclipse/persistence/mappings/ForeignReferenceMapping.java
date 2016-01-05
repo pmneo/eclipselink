@@ -336,7 +336,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
     public void buildCloneFromRow(AbstractRecord databaseRow, JoinedAttributeManager joinManager, Object clone, CacheKey sharedCacheKey, ObjectBuildingQuery sourceQuery, UnitOfWorkImpl unitOfWork, AbstractSession executionSession) {
         Boolean[] wasCacheUsed = new Boolean[]{Boolean.FALSE};
         Object attributeValue = valueFromRow(databaseRow, joinManager, sourceQuery, sharedCacheKey, executionSession, true, wasCacheUsed);
-        Object clonedAttributeValue = this.indirectionPolicy.cloneAttribute(attributeValue, null, sharedCacheKey,clone, null, unitOfWork, !wasCacheUsed[0]);// building clone directly from row.
+        Object clonedAttributeValue = this.indirectionPolicy.cloneAttribute(attributeValue, null, sharedCacheKey,clone, null, unitOfWork, !wasCacheUsed[0].booleanValue());// building clone directly from row.
         if (executionSession.isUnitOfWork() && sourceQuery.shouldRefreshIdentityMapResult()){
             // check whether the attribute is fully build before calling getAttributeValueFromObject because that
             // call may fully build the attribute
@@ -560,8 +560,9 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                 if (translationRow == null) {
                     translationRow = new DatabaseRecord();
                 }
+                
                 // Execute query and index resulting object sets by key.
-                if ( originalPolicy.isIN() ) { //causes errors in tests || originalPolicy.isIN() == false ) {
+                if ( originalPolicy.isIN() || ( batchQuery.isReadAllQuery() && ((ReadAllQuery)batchQuery).getBatchFetchPolicy().isIN() ) ) { //causes errors in tests || originalPolicy.isIN() == false ) {
                     // Need to extract all foreign key values from all parent rows for IN parameter.
                     List<AbstractRecord> parentRows = originalPolicy.getDataResults(this);
                     // Execute queries by batch if too many rows.
@@ -593,7 +594,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                         AbstractRecord row = null;
 
                         if( ( offset + index ) >= 0 && ( offset + index ) < rowsSize )
-                        	row = parentRows.get(offset + index);
+                            row = parentRows.get(offset + index);
                         // Handle duplicate rows in the ComplexQueryResult being replaced with null, as a
                         // result of duplicate filtering being true for constructing the ComplexQueryResult
                         if (row != null) {
@@ -624,8 +625,8 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                                         }
                                         else
                                         {
-                                        	foreignKeyValues.add(foreignKeyValue);
-                                        	foreignKeys.add(foreignKey);
+                                            foreignKeyValues.add(foreignKeyValue);
+                                            foreignKeys.add(foreignKey);
                                         }
                                     }
                                 }
@@ -1131,9 +1132,9 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
     public boolean isLazy() {
         if (isLazy == null) {
             // False by default for mappings without indirection.
-            isLazy = usesIndirection();
+            isLazy = Boolean.valueOf( usesIndirection() );
         }
-        return isLazy;
+        return isLazy.booleanValue();
     }
 
     /**
@@ -1527,11 +1528,11 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
     public Object readFromRowIntoObject(AbstractRecord databaseRow, JoinedAttributeManager joinManager, Object targetObject, CacheKey parentCacheKey, ObjectBuildingQuery sourceQuery, AbstractSession executionSession, boolean isTargetProtected) throws DatabaseException {
         Boolean[] wasCacheUsed = new Boolean[]{Boolean.FALSE};
         Object attributeValue = valueFromRow(databaseRow, joinManager, sourceQuery, parentCacheKey, executionSession, isTargetProtected, wasCacheUsed);
-        if (wasCacheUsed[0]){
+        if (wasCacheUsed[0].booleanValue()){
             //must clone here as certain mappings require the clone object to clone the attribute.
             Integer refreshCascade = null;
             if (sourceQuery != null && sourceQuery.isObjectBuildingQuery() && sourceQuery.shouldRefreshIdentityMapResult()) {
-                refreshCascade = sourceQuery.getCascadePolicy();
+                refreshCascade = Integer.valueOf( sourceQuery.getCascadePolicy() );
             }
             attributeValue = this.indirectionPolicy.cloneAttribute(attributeValue, parentCacheKey.getObject(), parentCacheKey, targetObject, refreshCascade, executionSession, false);
         }
