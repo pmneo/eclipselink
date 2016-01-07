@@ -722,7 +722,7 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
         item.setResultIndex(itemOffset);
         if (item.getAttributeExpression() != null) {
             if (item.hasJoining()){
-                itemOffset = item.getJoinedAttributeManager().computeJoiningMappingIndexes(true, getSession(), itemOffset) + 1;
+                itemOffset = item.getJoinedAttributeManager().computeJoiningMappingIndexes(true, getSession(), itemOffset);// + 1;
             } else {
                 if (item.getDescriptor() != null) {
                 	//if field is Expression, use this to count
