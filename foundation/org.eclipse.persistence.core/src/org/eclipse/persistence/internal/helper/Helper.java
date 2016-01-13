@@ -1925,7 +1925,7 @@ public class Helper extends CoreHelper implements Serializable {
         if ((timePortion.indexOf('-') == -1) && (timePortion.indexOf('/') == -1) && (timePortion.indexOf('.') == -1) && (timePortion.indexOf(':') == -1)) {
             throw ConversionException.incorrectTimeFormat(timePortion);
         }
-        StringTokenizer timeStringTokenizer = new StringTokenizer(timePortion, " /:.-");
+        StringTokenizer timeStringTokenizer = new StringTokenizer(timePortion, " /:.-+");
 
         try {
             hour = Integer.parseInt(timeStringTokenizer.nextToken());
@@ -2017,7 +2017,7 @@ public class Helper extends CoreHelper implements Serializable {
         if ((timestampString.indexOf('-') == -1) && (timestampString.indexOf('/') == -1) && (timestampString.indexOf('.') == -1) && (timestampString.indexOf(':') == -1)) {
             throw ConversionException.incorrectTimestampFormat(timestampString);
         }
-        StringTokenizer timestampStringTokenizer = new StringTokenizer(timestampString, " /:.-");
+        StringTokenizer timestampStringTokenizer = new StringTokenizer(timestampString, " /:.-+");
 
         int year;
         int month;
