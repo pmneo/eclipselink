@@ -562,9 +562,9 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                 }
                 
                 // Execute query and index resulting object sets by key.
-                if ( originalPolicy.isIN() || ( batchQuery.isReadAllQuery() && ((ReadAllQuery)batchQuery).getBatchFetchPolicy().isIN() ) ) { //causes errors in tests || originalPolicy.isIN() == false ) {
+                if ( originalPolicy.isIN() ) { 
                     // Need to extract all foreign key values from all parent rows for IN parameter.
-                    List<AbstractRecord> parentRows = originalPolicy.getDataResults(this);
+                    List<AbstractRecord> parentRows = originalPolicy.getDataResults( this );
                     // Execute queries by batch if too many rows.
                     int rowsSize = parentRows.size();
                     int size = Math.min(rowsSize, originalPolicy.getSize());
@@ -577,7 +577,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                         startIndex = parentRows.indexOf(sourceRow);
                         
                         if( startIndex < 0 )//bug?
-                            return null; 
+                            return null;
                     }
                     List foreignKeyValues = new ArrayList(size);
                     Set foreignKeys = new HashSet(size);
@@ -2199,7 +2199,15 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
         // or retrieve the object from the query property.
         if (sourceQuery.isObjectLevelReadQuery() && (((ObjectLevelReadQuery)sourceQuery).isAttributeBatchRead(this.descriptor, getAttributeName())
                 || (sourceQuery.isReadAllQuery() && shouldUseBatchReading()))) {
-            return batchedValueFromRow(row, (ObjectLevelReadQuery)sourceQuery, cacheKey);
+            
+            Object value;
+            if( this.indirectionPolicy instanceof NoIndirectionPolicy == false )
+                value = batchedValueFromRow(row, (ObjectLevelReadQuery)sourceQuery, cacheKey);
+            else
+                value = valueFromRowInternal(row, joinManager, sourceQuery, executionSession, false);
+            
+            return value;
+            
         } else {
             return valueFromRowInternal(row, joinManager, sourceQuery, executionSession, false);
         }
@@ -2299,14 +2307,15 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                 if (targetQuery.shouldPrepare()) {
                     targetQuery.checkPrepare(executionSession, row);
                 }
-                targetQuery = (ObjectLevelReadQuery)targetQuery.clone();
+                targetQuery = /*(ObjectLevelReadQuery)*/(ReadQuery)targetQuery.clone();
                 targetQuery.setIsExecutionClone(true);
             }
             targetQuery.setQueryId(sourceQuery.getQueryId());
             if (sourceQuery.usesResultSetAccessOptimization()) {
                 targetQuery.setAccessors(sourceQuery.getAccessors());
             }
-            ((ObjectLevelReadQuery)targetQuery).setRequiresDeferredLocks(sourceQuery.requiresDeferredLocks());
+            if( targetQuery instanceof ObjectBuildingQuery )
+                ((ObjectBuildingQuery)targetQuery).setRequiresDeferredLocks(sourceQuery.requiresDeferredLocks());
         }
 
         // If the source query is cascading then the target query must use the same settings.
