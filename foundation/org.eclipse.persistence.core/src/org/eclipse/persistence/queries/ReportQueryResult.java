@@ -206,7 +206,12 @@ public class ReportQueryResult implements Serializable, Map {
                 }
                 AbstractRecord subRow = row;
 
-				/* old bugfix from us
+                // Check if at the start of the row, then avoid building a subRow.
+                if (itemIndex > 0) {
+                    Vector trimedFields = new NonSynchronizedSubVector(row.getFields(), itemIndex, rowSize);
+                    Vector trimedValues = new NonSynchronizedSubVector(row.getValues(), itemIndex, rowSize);
+                    subRow = new DatabaseRecord(trimedFields, trimedValues);
+                }
                 if (mapping != null && mapping.isAggregateObjectMapping())
                 {
                     final AggregateObjectMapping amapping = ((AggregateObjectMapping)mapping);
@@ -236,27 +241,11 @@ public class ReportQueryResult implements Serializable, Map {
                     subRow = new DatabaseRecord(fakeFields, fakeValues);
 
                     value = amapping.buildAggregateFromRow(subRow, null, null, joinManager, query, false, query.getSession(), true);
-                }
-                else 
-                {
-                */
-
-                // Check if at the start of the row, then avoid building a subRow.
-                if (itemIndex > 0) {
-                    Vector trimedFields = new NonSynchronizedSubVector(row.getFields(), itemIndex, rowSize);
-                    Vector trimedValues = new NonSynchronizedSubVector(row.getValues(), itemIndex, rowSize);
-                    subRow = new DatabaseRecord(trimedFields, trimedValues);
-                }
-                if (mapping != null && mapping.isAggregateObjectMapping()){
-                    value = ((AggregateObjectMapping)mapping).buildAggregateFromRow(subRow, null, null, joinManager, query, false, query.getSession(), true);
+                    //value = ((AggregateObjectMapping)mapping).buildAggregateFromRow(subRow, null, null, joinManager, query, false, query.getSession(), true);
                 } else {
                     //TODO : Support prefrechedCacheKeys in report query
                     value = descriptor.getObjectBuilder().buildObject(query, subRow, joinManager);
                 }
-                /*
-                }
-                //eof old bugfix from us
-                */
 
                 // this covers two possibilities
                 // 1. We want the actual Map.Entry from the table rather than the just the key
