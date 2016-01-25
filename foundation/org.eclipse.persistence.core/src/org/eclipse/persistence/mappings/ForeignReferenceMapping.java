@@ -2200,9 +2200,26 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
         if (sourceQuery.isObjectLevelReadQuery() && (((ObjectLevelReadQuery)sourceQuery).isAttributeBatchRead(this.descriptor, getAttributeName())
                 || (sourceQuery.isReadAllQuery() && shouldUseBatchReading()))) {
             
-            Object value;
-            if( this.indirectionPolicy instanceof NoIndirectionPolicy == false )
-                value = batchedValueFromRow(row, (ObjectLevelReadQuery)sourceQuery, cacheKey);
+            final ObjectLevelReadQuery objectLevelReadQuery = (ObjectLevelReadQuery) sourceQuery;
+            
+            boolean canUseBatch = true;
+            
+            if( this.indirectionPolicy instanceof NoIndirectionPolicy )
+            {
+                if( this.descriptor.isAggregateDescriptor() && batchFetchType == BatchFetchType.JOIN )
+                {
+                    canUseBatch = false;
+                }
+                else if( objectLevelReadQuery.getBatchFetchPolicy().isIN() == false )
+                {
+                    canUseBatch = false;
+                }
+            }
+            
+            final Object value;
+            
+            if( canUseBatch )
+                value = batchedValueFromRow(row, objectLevelReadQuery, cacheKey);
             else
                 value = valueFromRowInternal(row, joinManager, sourceQuery, executionSession, false);
             
