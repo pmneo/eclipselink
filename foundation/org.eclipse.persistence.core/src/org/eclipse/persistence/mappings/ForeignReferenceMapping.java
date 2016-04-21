@@ -38,6 +38,7 @@ import java.util.Vector;
 import org.eclipse.persistence.annotations.BatchFetchType;
 import org.eclipse.persistence.descriptors.ClassDescriptor;
 import org.eclipse.persistence.descriptors.partitioning.PartitioningPolicy;
+import org.eclipse.persistence.exceptions.ConversionException;
 import org.eclipse.persistence.exceptions.DatabaseException;
 import org.eclipse.persistence.exceptions.DescriptorException;
 import org.eclipse.persistence.exceptions.QueryException;
@@ -53,6 +54,7 @@ import org.eclipse.persistence.internal.descriptors.MethodAttributeAccessor;
 import org.eclipse.persistence.internal.expressions.ForUpdateOfClause;
 import org.eclipse.persistence.internal.expressions.ObjectExpression;
 import org.eclipse.persistence.internal.helper.ClassConstants;
+import org.eclipse.persistence.internal.helper.ConversionManager;
 import org.eclipse.persistence.internal.helper.DatabaseField;
 import org.eclipse.persistence.internal.helper.Helper;
 import org.eclipse.persistence.internal.helper.NonSynchronizedSubVector;
@@ -550,7 +552,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                 if (result == Helper.NULL_VALUE) {
                     return null;
                 // If IN may not have that batch yet, or it may have been null.
-                } else if ((result != null) || (!originalPolicy.isIN())) {
+                } else if ((result != null) || !( originalPolicy.isIN() || originalQuery instanceof ReportQuery )) {
                     return result;
                 }
             }
@@ -562,7 +564,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                 }
                 
                 // Execute query and index resulting object sets by key.
-                if ( originalPolicy.isIN() ) { 
+                if ( originalPolicy.isIN() || originalQuery instanceof ReportQuery ) { 
                     // Need to extract all foreign key values from all parent rows for IN parameter.
                     List<AbstractRecord> parentRows = originalPolicy.getDataResults( this );
                     // Execute queries by batch if too many rows.
@@ -598,35 +600,41 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                         // Handle duplicate rows in the ComplexQueryResult being replaced with null, as a
                         // result of duplicate filtering being true for constructing the ComplexQueryResult
                         if (row != null) {
-                            Object foreignKey = extractBatchKeyFromRow(row, session);
-                            if (foreignKey == null) {
-                                // Ignore null foreign keys.
-                                count--;
-                            } else {
-                                cachedObject = checkCacheForBatchKey(row, foreignKey, batchedObjects, batchQuery, originalQuery, session);
-                                if (cachedObject != null) {
-                                    // Avoid fetching things a cache hit occurs for.
+                            Object[] rowForeignKeys = extractBatchKeysFromRow(row, session);
+                            
+                            count += ( rowForeignKeys.length - 1 );
+                            
+                            for( Object foreignKey : rowForeignKeys )
+                            {
+                                if (foreignKey == null) {
+                                    // Ignore null foreign keys.
                                     count--;
                                 } else {
-                                    // Ensure the same id is not selected twice.
-                                    if (foreignKeys.contains(foreignKey)) {
+                                    cachedObject = checkCacheForBatchKey(row, foreignKey, batchedObjects, batchQuery, originalQuery, session);
+                                    if (cachedObject != null) {
+                                        // Avoid fetching things a cache hit occurs for.
                                         count--;
                                     } else {
-                                        Object[] key = ((CacheId)foreignKey).getPrimaryKey();
-                                        Object foreignKeyValue = key[0];
-                                        // Support composite keys using nested IN.
-                                        if (key.length > 1) {
-                                            foreignKeyValue = Arrays.asList(key);
-                                        }
-
-                                        if( foreignKeyValue == null )
-                                        {
-                                            count --;
-                                        }
-                                        else
-                                        {
-                                            foreignKeyValues.add(foreignKeyValue);
-                                            foreignKeys.add(foreignKey);
+                                        // Ensure the same id is not selected twice.
+                                        if (foreignKeys.contains(foreignKey)) {
+                                            count--;
+                                        } else {
+                                            Object[] key = ((CacheId)foreignKey).getPrimaryKey();
+                                            Object foreignKeyValue = key[0];
+                                            // Support composite keys using nested IN.
+                                            if (key.length > 1) {
+                                                foreignKeyValue = Arrays.asList(key);
+                                            }
+    
+                                            if( foreignKeyValue == null )
+                                            {
+                                                count --;
+                                            }
+                                            else
+                                            {
+                                                foreignKeyValues.add(foreignKeyValue);
+                                                foreignKeys.add(foreignKey);
+                                            }
                                         }
                                     }
                                 }
@@ -682,6 +690,83 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
      */
     protected Object extractBatchKeyFromRow(AbstractRecord targetRow, AbstractSession session) {
         throw QueryException.batchReadingNotSupported(this, null);
+    }
+    
+    /**
+     * INTERNAL:
+     * Extract the batch key value from the source row.
+     * Used for batch reading, most following same order and fields as in the mapping.
+     * The method should be overridden by classes that support batch reading.
+     */
+    protected Object[] extractBatchKeysFromRow(AbstractRecord targetRow, AbstractSession session) {
+        return new Object[] { extractBatchKeyFromRow( targetRow, session ) };
+    }
+    
+    /**
+     * INTERNAL:
+     * Extract the primary key value from the source row.
+     * Used for batch reading, most following same order and fields as in the mapping.
+     */
+    protected Object[] extractBatchKeysFromRow(AbstractRecord row, AbstractSession session, Collection<DatabaseField> sourceKeyFields) 
+    {
+        int size = sourceKeyFields.size();
+
+        ConversionManager conversionManager = session.getDatasourcePlatform().getConversionManager();
+        
+        final List<List<DatabaseField>> parts = new ArrayList<List<DatabaseField>>( size );
+        
+        for( DatabaseField field : sourceKeyFields )
+        {
+            int partIndex = 0;
+            int fieldIndex = 0;
+            for( DatabaseField f : row.getFields() )
+            {
+                if( f.equals( field ) )
+                {
+                    final List<DatabaseField> partFields;
+                    
+                    if( partIndex < parts.size() )
+                        partFields = parts.get( partIndex );
+                    else
+                    {
+                        partFields = new ArrayList< DatabaseField >();
+                        parts.add( partFields );
+                    }
+                    
+                    DatabaseField ff = f.clone();
+                    ff.index = fieldIndex;
+                    
+                    partFields.add( ff );
+                    
+                    partIndex++;
+                }
+                
+                fieldIndex ++;
+            }
+        }
+           
+        final Object[] keys = new Object[ parts.size() ];
+        
+        for( int keyIndex = 0; keyIndex < keys.length; keyIndex ++ )
+        {
+            Object[] key = new Object[size];
+            for (int index = 0; index < size; index++) 
+            {
+                DatabaseField field = parts.get( keyIndex ).get(index);
+                
+                Object value = row.get(field);
+                // Must ensure the classification to get a cache hit.
+                try {
+                    value = conversionManager.convertObject(value, field.getType());
+                } catch (ConversionException exception) {
+                    throw ConversionException.couldNotBeConverted(this, this.descriptor, exception);
+                }
+                key[index] = value;
+            }
+            
+            keys[ keyIndex ] = new CacheId(key);
+        }
+        return keys;
     }
 
     /**
@@ -2210,7 +2295,7 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                 {
                     canUseBatch = false;
                 }
-                else if( objectLevelReadQuery.getBatchFetchPolicy().isIN() == false )
+                else if( objectLevelReadQuery.getBatchFetchPolicy().isIN() == false && objectLevelReadQuery instanceof ReportQuery == false )
                 {
                     canUseBatch = false;
                 }

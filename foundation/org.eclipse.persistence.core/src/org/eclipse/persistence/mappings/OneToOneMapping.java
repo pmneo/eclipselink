@@ -675,6 +675,20 @@ public class OneToOneMapping extends ObjectReferenceMapping implements Relationa
         }
         return new CacheId(key);
     }
+    
+    /**
+     * INTERNAL:
+     * Extract the primary key value from the source row.
+     * Used for batch reading, most following same order and fields as in the mapping.
+     */
+    @Override
+    protected Object[] extractBatchKeysFromRow(AbstractRecord row, AbstractSession session) {
+        if (this.mechanism != null) {
+            return extractBatchKeysFromRow( row, session, this.mechanism.sourceKeyFields );
+        }
+        
+        return extractBatchKeysFromRow( row, session, this.sourceToTargetKeyFields.keySet() );
+    }
 
     /**
      * INTERNAL:

@@ -632,6 +632,9 @@ public class ReportQuery extends ReadAllQuery {
             if (rows.isEmpty()) {
                 return null;
             }
+            
+            getBatchFetchPolicy().addDataResults( (AbstractRecord)rows.get(0) );
+            
             return buildObject((AbstractRecord)rows.get(0), rows);
         }
 
@@ -642,6 +645,12 @@ public class ReportQuery extends ReadAllQuery {
         if (shouldDistinctBeUsed()){
             this.returnedKeys = new HashSet(size);
         }
+        
+        
+        //adding the row to the BatchFetchPolicy for Lazy Fetching!
+        for (int index = 0; index < size; index++)
+            getBatchFetchPolicy().addDataResults( (AbstractRecord)rows.get(index) );
+        
         //end GF_ISSUE
         //If only the attribute is desired, then buildObject will only get the first attribute each time
         for (int index = 0; index < size; index++) {
@@ -650,9 +659,6 @@ public class ReportQuery extends ReadAllQuery {
             if (result != RESULT_IGNORED) {
                 containerPolicy.addInto(result, reportResults, this.session);
             }
-
-            //adding the row to the BatchFetchPolicy for Lazy Fetching!
-            getBatchFetchPolicy().addDataResults( (AbstractRecord)rows.get(index) );
             //end GF_ISSUE
         }
         if (shouldCacheQueryResults()) {
