@@ -12,120 +12,317 @@
  ******************************************************************************/
 package org.eclipse.persistence.json.bind.internal;
 
-import org.eclipse.persistence.json.bind.model.PropertyModel;
+import org.eclipse.persistence.json.bind.internal.adapter.AdapterMatcher;
+import org.eclipse.persistence.json.bind.internal.adapter.JsonbAdapterInfo;
+import org.eclipse.persistence.json.bind.internal.internalOrdering.*;
+import org.eclipse.persistence.json.bind.internal.naming.PropertyNamingStrategy;
+import org.eclipse.persistence.json.bind.internal.properties.MessageKeys;
+import org.eclipse.persistence.json.bind.internal.properties.Messages;
+import org.eclipse.persistence.json.bind.internal.serializer.JsonpSerializers;
+import org.eclipse.persistence.json.bind.model.*;
 
-import java.io.IOException;
+import javax.json.bind.JsonbConfig;
+import javax.json.bind.JsonbException;
+import javax.json.bind.adapter.JsonbAdapter;
+import javax.json.bind.annotation.JsonbPropertyOrder;
+import javax.json.bind.config.PropertyOrderStrategy;
+import javax.json.stream.JsonGenerator;
 import java.io.OutputStream;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.lang.reflect.Array;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.nio.charset.Charset;
 import java.util.*;
+import java.util.logging.Logger;
 
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 
 /**
  * JSONB marshaller. Created each time marshalling operation called.
  *
+ * TODO current marshaller implementation will throw StackOverflowError with very large object trees.
+ *
  * @author Dmitry Kornilov
+ * @author Roman Grigoriadi
  */
 public class Marshaller extends JsonTextProcessor {
 
-    private Type rootRuntimeType;
-
-    public Marshaller(MappingContext mappingContext) {
-        super(mappingContext);
+    private enum Context {
+        ROOT,
+        PROPERTY,
+        ARRAY;
     }
 
-    public Marshaller(MappingContext mappingContext, Type rootRuntimeType) {
-        super(mappingContext);
-        this.rootRuntimeType = rootRuntimeType;
+    private static final Logger logger = Logger.getLogger(Marshaller.class.getName());
+
+    /**
+     *  Runtime types in marshaller are used for inferring runtime generic types of processed objects,
+     *  to be able to match generic adapters {@link JsonbAdapter}. In case of Field {@code Box<T>} in Class {@code Pojo<T>}, T is inferred from
+     *  runtimeTypeInfo and correctly adapted by a generic adapter for a {@code Box<T>}.
+     */
+    private Optional<RuntimeTypeInfo> runtimeTypeInfo;
+
+    private final Stack<PropertyModel> propertyModelStack = new Stack<>();
+
+    //TODO this is temporary helper.
+    //TODO Current state of marshaller is getting messy and hard to maintain, splitting to several smaller controllers is needed.
+    private final Stack<Context> contextStack = new Stack<>();
+
+    private static final HashMap<String, PropOrderStrategy> orderStrategies = new HashMap<>();
+
+    static {
+        orderStrategies.put(PropertyOrderStrategy.LEXICOGRAPHICAL, new LexicographicalOrderStrategy());
+        orderStrategies.put(PropertyOrderStrategy.REVERSE, new ReverseOrderStrategy());
+        orderStrategies.put(PropertyOrderStrategy.ANY, new AnyOrderStrategy());
+    }
+
+    private final JsonGenerator jsonGenerator;
+
+    private final StringWriter stringWriter;
+
+    /**
+     * Creates Marshaller for generation to String.
+     *
+     * @param jsonbContext
+     */
+    public Marshaller(JsonbContext jsonbContext) {
+        super(jsonbContext);
+        this.stringWriter = new StringWriter();
+        this.jsonGenerator = createGenerator(stringWriter);
+        this.runtimeTypeInfo = Optional.empty();
     }
 
     /**
-     * Marshals a given object.
+     * Creates Marshaller for generation to Writer
+     *
+     * @param jsonbContext Context of Jsonb
+     * @param writer writer to marshall into
+     */
+    public Marshaller(JsonbContext jsonbContext, Writer writer) {
+        super(jsonbContext);
+        this.jsonGenerator = createGenerator(writer);
+        stringWriter = null;
+        this.runtimeTypeInfo = Optional.empty();
+    }
+
+    /**
+     * Creates Marshaller for generation to OutputStream
+     * @param jsonbContext Context of Jsonb
+     * @param outputStream stream to marshall into
+     */
+    public Marshaller(JsonbContext jsonbContext, OutputStream outputStream) {
+        super(jsonbContext);
+        this.jsonGenerator = createGenerator(outputStream);
+        stringWriter = null;
+        this.runtimeTypeInfo = Optional.empty();
+    }
+
+    private JsonGenerator createGenerator(Writer writer) {
+        Map<String, ?> factoryProperties = createJsonpProperties(jsonbContext.getConfig());
+        return new IJsonJsonGeneratorDecorator(jsonbContext.getJsonProvider().createGeneratorFactory(factoryProperties).createGenerator(writer));
+    }
+
+    private JsonGenerator createGenerator(OutputStream outputStream) {
+        Map<String, ?> factoryProperties = createJsonpProperties(jsonbContext.getConfig());
+        final String encoding = (String) jsonbContext.getConfig().getProperty(JsonbConfig.ENCODING).orElse("UTF-8");
+        return new IJsonJsonGeneratorDecorator(jsonbContext.getJsonProvider().createGeneratorFactory(factoryProperties).createGenerator(outputStream, Charset.forName(encoding)));
+    }
+
+    /**
+     * Creates Marshaller for generation to String with runtime type information.
+     *
+     * @param jsonbContext Context of Jsonb
+     * @param rootRuntimeType runtime type for generic information
+     */
+    public Marshaller(JsonbContext jsonbContext, Type rootRuntimeType) {
+        super(jsonbContext);
+        Objects.requireNonNull(rootRuntimeType);
+        this.runtimeTypeInfo = Optional.of(new RuntimeTypeHolder(null, rootRuntimeType));
+        this.stringWriter = new StringWriter();
+        this.jsonGenerator = createGenerator(stringWriter);
+    }
+
+
+    /**
+     * Helper constructor.
+     */
+    public Marshaller(JsonbContext jsonbContext, Type rootRuntimeType, Writer writer) {
+        super(jsonbContext);
+        Objects.requireNonNull(rootRuntimeType);
+        this.runtimeTypeInfo = Optional.of(new RuntimeTypeHolder(null, rootRuntimeType));
+        this.stringWriter = null;
+        this.jsonGenerator = createGenerator(writer);
+    }
+
+    /**
+     * Helper constructor.
+     */
+    public Marshaller(JsonbContext jsonbContext, Type rootRuntimeType, OutputStream outputStream) {
+        super(jsonbContext);
+        Objects.requireNonNull(rootRuntimeType);
+        this.runtimeTypeInfo = Optional.of(new RuntimeTypeHolder(null, rootRuntimeType));
+        this.stringWriter = null;
+        this.jsonGenerator = createGenerator(outputStream);
+    }
+
+    /**
+     * Marshals a given object to a string.
      *
      * @param object object to marshal.
      * @return JSON representation of object
      */
-    public String marshall(Object object) {
-        return marshallInternal(object);
-    }
-
-    public void marshall(Object object, Appendable appendable) throws IOException {
-        appendable.append(marshallInternal(object));
-    }
-
-    public void marshall(Object object, OutputStream stream) throws IOException {
-        stream.write(marshallInternal(object).getBytes("UTF-8"));
-    }
-
-
-    /**
-     * Marshals a given object.
-     *
-     * @param object object to marshal.
-     * @return JSON representation of object
-     */
-    private String marshallInternal(Object object) {
-        if (object == null
-                || object instanceof Optional && !((Optional) object).isPresent()) {
-            return NULL;
-
-        } else if (object instanceof Optional) {
-            return marshallInternal(((Optional) object).get());
-
-        } else if (object instanceof Collection) {
-            return marshallCollection((Collection<?>) object);
-
-        } else if (object instanceof Map) {
-            return marshallMap((Map<?, ?>) object);
-
-        } else if (object.getClass().isArray()) {
-            return marshallArray(object);
-
-        } else if (converter.supportsToJson(object.getClass())) {
-            return converter.toJson(object);
-
-        } else {
-            return marshallObject(object);
-        }
-    }
-
-    private String marshallObject(Object object) {
-        // Deal with inheritance
-        final List<PropertyModel> allFields = new LinkedList<>();
-        for (Class clazz = object.getClass(); clazz.getSuperclass() != null; clazz = clazz.getSuperclass()) {
-            final List<PropertyModel> properties = new ArrayList<>(mappingContext.getOrCreateClassModel(clazz).getFields().values());
-            List<PropertyModel> filteredAndSorted = properties.stream().filter(propertyModel -> !allFields.contains(propertyModel)).sorted().collect(toList());
-            allFields.addAll(0, filteredAndSorted);
-        }
-
-        return allFields.stream()
-                .map((model) -> marshallField(object, model))
-                .filter(Objects::nonNull) //TODO custom null handling
-                .collect(joining(",", "{", "}"));
-    }
-
-    private String marshallField(Object object, PropertyModel propertyModel) {
-        final Object value = propertyModel.getValue(object);
-        if (value != null) {
-            if (value instanceof OptionalInt && !((OptionalInt) value).isPresent()
-                    || value instanceof OptionalLong && !((OptionalLong) value).isPresent()
-                    || value instanceof OptionalDouble && !((OptionalDouble) value).isPresent()) {
-                return null;
+    public String marshallToString(Object object) {
+        new JsonbContextCommand() {
+            @Override
+            protected void doInJsonbContext() {
+                contextStack.push(Context.ROOT);
+                marshallObject(Optional.empty(), object);
+                contextStack.pop();
+                jsonGenerator.close();
             }
-            return keyValue(propertyModel.getWriteName(), marshallInternal(value));
-        }
-
-        // Null value is returned in case this field doesn't need to be marshaled
-        return null;
+        }.execute(jsonbContext);
+        return stringWriter.toString();
     }
 
-    private String marshallArray(Object array) {
-        if (array.getClass().getComponentType().isPrimitive()) {
-            return marshallCollection(boxArray(array));
+    /**
+     * Marshals given object to provided Writer or OutputStream.
+     *
+     * @param object object to marshall
+     */
+    public void marshall(Object object) {
+        new JsonbContextCommand() {
+            @Override
+            protected void doInJsonbContext() {
+                marshallObject(Optional.empty(), object);
+                jsonGenerator.close();
+            }
+        }.execute(jsonbContext);
+    }
+
+
+    /**
+     * Marshals a given object.
+     *
+     * @param object object to marshal.
+     * @param keyName name of a json key if any, nullable
+     * @return JSON representation of object
+     */
+    @SuppressWarnings("unchecked")
+    private void marshallObject(final Optional<String> keyName, final Object object) {
+        final Type objectRuntimeType = runtimeTypeInfo.map(RuntimeTypeInfo::getRuntimeType).orElse(object.getClass());
+        final Optional<JsonbAdapterInfo> adapterInfoOptional = getMarshallerAdapterInfo(objectRuntimeType);
+        Optional<Object> adaptedValue = adapterInfoOptional.map(info->{
+            logger.fine(Messages.getMessage(MessageKeys.ADAPTER_FOUND, info.getFromType().getTypeName(), info.getToType().getTypeName()));
+            pushRuntimeType(info.getToType());
+            try {
+                return ((JsonbAdapter<Object, Object>) info.getAdapter()).adaptToJson(object);
+            } catch (Exception e) {
+                throw new JsonbException(Messages.getMessage(MessageKeys.ADAPTER_EXCEPTION, objectRuntimeType, info.getToType(), info.getAdapter().getClass()), e);
+            }
+        });
+        final Object value = adaptedValue.orElse(object);
+
+        if (value instanceof Optional) {
+            marshallObject(keyName, ((Optional) value).get());
+
+        } else if (value instanceof Collection) {
+            marshallCollection(keyName, (Collection<?>) value);
+
+        } else if (value instanceof Map) {
+            marshallMap(keyName, (Map<?, ?>) value);
+
+        } else if (value.getClass().isArray()
+                && !(value instanceof byte[])) {
+            marshallArray(keyName, value);
+
+        } else if (JsonpSerializers.getInstance().supports(value)) {
+            JsonpSerializers.getInstance().serialize(keyName, value, jsonGenerator);
+        } else if (converter.supportsToJson(value.getClass())) {
+            JsonpSerializers.getInstance().serialize(keyName,
+                    converter.toJson(value, getCustomization(value.getClass())),
+                    jsonGenerator);
         } else {
-            return marshallCollection(Arrays.asList((Object[])array));
+            writeStartObject(keyName);
+            marshallObjectProperties(value);
+            jsonGenerator.writeEnd();
+        }
+        adapterInfoOptional.ifPresent(adapterInfo->popRuntimeType());
+    }
+
+    private Optional<JsonbAdapterInfo> getMarshallerAdapterInfo(Type runtimeType) {
+        if (preventTypeWrapperAdaptingRecursion()) {
+            return Optional.empty();
+        }
+        final AdapterMatcher matcher = AdapterMatcher.getInstance();
+        return propertyModelStack.empty() ?
+                matcher.getAdapterInfo(runtimeType) : matcher.getAdapterInfo(runtimeType, propertyModelStack.peek());
+    }
+
+    /**
+     * Class of T instance in type wrapper is adapted to TypeWrapper, which would cause a StackOverflow
+     * due to cycling adapting recursion.
+     *
+     * TODO consider more generic approach for detecting adapter recursion
+     */
+    private boolean preventTypeWrapperAdaptingRecursion() {
+        return !propertyModelStack.empty() && propertyModelStack.peek().getClassModel().getRawType() == TypeWrapper.class;
+    }
+
+    private void marshallObjectProperties(Object object) {
+        // Deal with inheritance
+        final List<PropertyModel> allProperties = new LinkedList<>();
+        final MappingContext mappingContext = JsonbContext.getInstance().getMappingContext();
+        mappingContext.parseClassModel(object.getClass());
+        for (Class clazz = object.getClass(); clazz.getSuperclass() != null; clazz = clazz.getSuperclass()) {
+            ClassModel classModel = mappingContext.getClassModel(clazz);
+            final List<PropertyModel> properties = new ArrayList<>(classModel.getProperties().values());
+            Optional<JsonbPropertyOrder> jsonbPropertyOrder = AnnotationIntrospector.getInstance().getJsonbPropertyOrderAnnotation(clazz);
+            List<PropertyModel> filteredAndSorted;
+            //Check if the class has JsonbPropertyOrder annotation defined
+            if (!jsonbPropertyOrder.isPresent()) {
+                //Sorting fields according to selected or default order
+                String propertyOrderStrategy = JsonbContext.getInstance().getConfig().getProperty(JsonbConfig.PROPERTY_ORDER_STRATEGY).isPresent() ? (String) JsonbContext.getInstance().getConfig().getProperty(JsonbConfig.PROPERTY_ORDER_STRATEGY).get() : PropertyOrderStrategy.LEXICOGRAPHICAL;
+                if (!orderStrategies.containsKey(propertyOrderStrategy)) {
+                    throw new JsonbException(Messages.getMessage(MessageKeys.PROPERTY_ORDER, propertyOrderStrategy));
+                }
+                filteredAndSorted = orderStrategies.get(propertyOrderStrategy).sortProperties(properties);
+            } else {
+                filteredAndSorted = new AnnotationOrderStrategy(jsonbPropertyOrder.get().value()).sortProperties(properties);
+            }
+            filteredAndSorted = filteredAndSorted.stream().filter(propertyModel -> !allProperties.contains(propertyModel)).collect(toList());
+            allProperties.addAll(0, filteredAndSorted);
+        }
+
+        allProperties.stream()
+                .forEach((propertyModel) -> marshallProperty(object, propertyModel));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void marshallProperty(Object object, PropertyModel propertyModel) {
+        Object value = propertyModel.getValue(object);
+        if (value == null || isEmptyOptional(value)) {
+            if (propertyModel.getCustomization().isNillable()) {
+                jsonGenerator.writeNull(getJsonPropertyName(propertyModel.getCustomization().getJsonWriteName()));
+            }
+            return;
+        }
+        logger.finest("Serializing property: "+propertyModel.getPropertyName()+" in class "+propertyModel.getClassModel().getRawType().getSimpleName());
+        propertyModelStack.push(propertyModel);
+        contextStack.push(Context.PROPERTY);
+        pushRuntimeType(propertyModel.getPropertyType());
+        marshallObject(Optional.of(getJsonPropertyName(propertyModel.getCustomization().getJsonWriteName())), value);
+        popRuntimeType();
+        propertyModelStack.pop();
+        contextStack.pop();
+    }
+
+    private void marshallArray(Optional<String> keyName, Object array) {
+        if (array.getClass().getComponentType().isPrimitive()) {
+            marshallCollection(keyName, boxArray(array));
+        } else {
+            marshallCollection(keyName, Arrays.asList((Object[])array));
         }
     }
 
@@ -141,27 +338,88 @@ public class Marshaller extends JsonTextProcessor {
         return result;
     }
 
-    private String marshallCollection(Collection<?> collection) {
-        return collection.stream()
-                .map(this::marshallInternal)
-                .collect(joining(",", "[", "]"));
+    private void marshallCollection(Optional<String> keyName, Collection<?> collection) {
+        runtimeTypeInfo.ifPresent(rti -> pushRuntimeType(((ParameterizedType) rti.getRuntimeType()).getActualTypeArguments()[0]));
+        if (keyName.isPresent()) {
+            jsonGenerator.writeStartArray(keyName.get());
+        } else {
+            jsonGenerator.writeStartArray();
+        }
+        contextStack.push(Context.ARRAY);
+        collection.stream().forEach((item)->{
+            if (item == null || isEmptyOptional(item)) {
+                jsonGenerator.writeNull();
+                return;
+            }
+            marshallObject(Optional.empty(), item);
+        });
+        contextStack.pop();
+        jsonGenerator.writeEnd();
+        popRuntimeType();
     }
 
-    private String marshallMap(Map<?, ?> map) {
-        return map.keySet().stream()
-                .map((key) -> keyValue(key.toString(), marshallInternal(map.get(key))))
-                .collect(joining(",", "{", "}"));
+    private void marshallMap(Optional<String> keyName, Map<?, ?> map) {
+        runtimeTypeInfo.ifPresent(rti -> pushRuntimeType(((ParameterizedType) rti.getRuntimeType()).getActualTypeArguments()[1]));
+        writeStartObject(keyName);
+        map.keySet().stream().forEach((key) -> {
+            final String keysString = String.valueOf(key);
+            final Object value = map.get(key);
+            if (value == null || isEmptyOptional(value)) {
+                jsonGenerator.writeNull(keysString);
+                return;
+            }
+            marshallObject(Optional.of(keysString), value);
+        });
+        jsonGenerator.writeEnd();
+        popRuntimeType();
     }
 
-    private String keyValue(String key, Object value) {
-        return quoteString(key) + ":" + value;
+    private String getJsonPropertyName(String classPropertyName) {
+        final PropertyNamingStrategy namingStrategy = JsonbContext.getInstance().getPropertyNamingStrategy();
+        return namingStrategy != null ? namingStrategy.toJsonPropertyName(classPropertyName) : classPropertyName;
     }
 
-    private String quoteString(String string) {
-        return quoteString("\"", string);
+    private void pushRuntimeType(Type runtimeType) {
+        runtimeTypeInfo.ifPresent(rti -> {
+            Type resolvedType = ReflectionUtils.resolveType(rti, runtimeType);
+            logger.finest(String.format("Pushed runtime type [%s], resolved from [%s].", resolvedType.getTypeName(), runtimeType.getTypeName()));
+            runtimeTypeInfo = Optional.of(new RuntimeTypeHolder(rti, resolvedType));
+        });
     }
 
-    private String quoteString(String quote, String string) {
-        return String.join("", quote, string, quote);
+    private void popRuntimeType() {
+        runtimeTypeInfo.ifPresent(rti -> {
+            logger.finest(String.format("Popping runtime type [%s]", rti.getRuntimeType().getTypeName()));
+            this.runtimeTypeInfo = Optional.ofNullable(rti.getWrapper());
+        });
+    }
+
+    private void writeStartObject(Optional<String> key) {
+        if (key.isPresent()) {
+            jsonGenerator.writeStartObject(key.get());
+        } else {
+            jsonGenerator.writeStartObject();
+        }
+    }
+
+    private <T> boolean isEmptyOptional(T value) {
+        return value instanceof Optional<?> && !((Optional<?>) value).isPresent()
+                || value instanceof OptionalInt && !((OptionalInt) value).isPresent()
+                || value instanceof OptionalLong && !((OptionalLong) value).isPresent()
+                || value instanceof OptionalDouble && !((OptionalDouble) value).isPresent();
+    }
+
+    private Customization getCustomization(Class<?> marshalledType) {
+        final Context currentContext = contextStack.peek();
+        switch (currentContext) {
+            case ROOT:
+            case ARRAY:
+                ClassModel model = jsonbContext.getMappingContext().getClassModel(marshalledType);
+                return model != null ? model.getClassCustomization() : null;
+            case PROPERTY:
+                return propertyModelStack.peek().getCustomization();
+            default:
+                throw new IllegalStateException("Illegal marshaller context: "+ currentContext);
+        }
     }
 }

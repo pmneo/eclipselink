@@ -12,17 +12,19 @@
  ******************************************************************************/
 package org.eclipse.persistence.json.bind;
 
+import org.eclipse.persistence.json.bind.internal.JsonbContext;
 import org.eclipse.persistence.json.bind.internal.MappingContext;
 import org.eclipse.persistence.json.bind.internal.Marshaller;
-import org.eclipse.persistence.json.bind.internal.properties.MessageKeys;
-import org.eclipse.persistence.json.bind.internal.properties.Messages;
-import org.eclipse.persistence.json.bind.internal.unmarshaller.Unmarshaller;
+import org.eclipse.persistence.json.bind.internal.Unmarshaller;
+import org.eclipse.persistence.json.bind.internal.cdi.JsonbComponentInstanceCreatorFactory;
 
 import javax.json.bind.Jsonb;
 import javax.json.bind.JsonbException;
-import java.io.IOException;
+import javax.json.spi.JsonProvider;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Reader;
+import java.io.Writer;
 import java.lang.reflect.Type;
 
 /**
@@ -31,94 +33,88 @@ import java.lang.reflect.Type;
  * @author Dmitry Kornilov
  */
 public class JsonBinding implements Jsonb {
-    private final MappingContext mappingContext;
+
+    private final JsonbContext jsonbContext;
 
     JsonBinding(JsonBindingBuilder builder) {
-        // TODO set internal properties of the mappingContext from builder
-        mappingContext = new MappingContext();
+        this.jsonbContext = new JsonbContext(new MappingContext(), builder.getConfig(), JsonbComponentInstanceCreatorFactory.getComponentInstanceCreator(),
+                builder.getProvider().orElse(JsonProvider.provider()));
     }
 
     @Override
     public <T> T fromJson(String str, Class<T> type) throws JsonbException {
-        Unmarshaller unmarshaller = new Unmarshaller(mappingContext, str, type);
+        Unmarshaller unmarshaller = new Unmarshaller(jsonbContext, type, str);
         return unmarshaller.parse();
     }
 
     @Override
     public <T> T fromJson(String str, Type runtimeType) throws JsonbException {
-        Unmarshaller unmarshaller = new Unmarshaller(mappingContext, str, runtimeType);
+        Unmarshaller unmarshaller = new Unmarshaller(jsonbContext, runtimeType, str);
         return unmarshaller.parse();
     }
 
     @Override
-    public <T> T fromJson(Readable readable, Class<T> type) throws JsonbException {
-        return null;
+    public <T> T fromJson(Reader reader, Class<T> type) throws JsonbException {
+        Unmarshaller unmarshaller = new Unmarshaller(jsonbContext, type, reader);
+        return unmarshaller.parse();
     }
 
     @Override
-    public <T> T fromJson(Readable readable, Type runtimeType) throws JsonbException {
-        return null;
+    public <T> T fromJson(Reader reader, Type runtimeType) throws JsonbException {
+        Unmarshaller unmarshaller = new Unmarshaller(jsonbContext, runtimeType, reader);
+        return unmarshaller.parse();
     }
 
     @Override
     public <T> T fromJson(InputStream stream, Class<T> type) throws JsonbException {
-        return null;
+        Unmarshaller unmarshaller = new Unmarshaller(jsonbContext, type, stream);
+        return unmarshaller.parse();
     }
 
     @Override
     public <T> T fromJson(InputStream stream, Type runtimeType) throws JsonbException {
-        return null;
+        Unmarshaller unmarshaller = new Unmarshaller(jsonbContext, runtimeType, stream);
+        return unmarshaller.parse();
     }
 
     @Override
     public String toJson(Object object) throws JsonbException {
-        final Marshaller marshaller = new Marshaller(mappingContext);
-        return marshaller.marshall(object);
+        final Marshaller marshaller = new Marshaller(jsonbContext);
+        return marshaller.marshallToString(object);
     }
 
     @Override
     public String toJson(Object object, Type runtimeType) throws JsonbException {
-        final Marshaller marshaller = new Marshaller(mappingContext, runtimeType);
-        return marshaller.marshall(object);
+        final Marshaller marshaller = new Marshaller(jsonbContext, runtimeType);
+        return marshaller.marshallToString(object);
     }
 
     @Override
-    public void toJson(Object object, Appendable appendable) throws JsonbException {
-        final Marshaller marshaller = new Marshaller(mappingContext);
-        try {
-            marshaller.marshall(object, appendable);
-        } catch (IOException e) {
-            throw new JsonbException(Messages.getMessage(MessageKeys.CANNOT_MARSHAL_OBJECT), e);
-        }
+    public void toJson(Object object, Writer writer) throws JsonbException {
+        final Marshaller marshaller = new Marshaller(jsonbContext, writer);
+        marshaller.marshall(object);
     }
 
     @Override
-    public void toJson(Object object, Type runtimeType, Appendable appendable) throws JsonbException {
-        final Marshaller marshaller = new Marshaller(mappingContext, runtimeType);
-        try {
-            marshaller.marshall(object, appendable);
-        } catch (IOException e) {
-            throw new JsonbException(Messages.getMessage(MessageKeys.CANNOT_MARSHAL_OBJECT), e);
-        }
+    public void toJson(Object object, Type runtimeType, Writer writer) throws JsonbException {
+        final Marshaller marshaller = new Marshaller(jsonbContext, runtimeType, writer);
+        marshaller.marshall(object);
     }
 
     @Override
     public void toJson(Object object, OutputStream stream) throws JsonbException {
-        final Marshaller marshaller = new Marshaller(mappingContext);
-        try {
-            marshaller.marshall(object, stream);
-        } catch (IOException e) {
-            throw new JsonbException(Messages.getMessage(MessageKeys.CANNOT_MARSHAL_OBJECT), e);
-        }
+        final Marshaller marshaller = new Marshaller(jsonbContext, stream);
+        marshaller.marshall(object);
     }
 
     @Override
     public void toJson(Object object, Type runtimeType, OutputStream stream) throws JsonbException {
-        final Marshaller marshaller = new Marshaller(mappingContext, runtimeType);
-        try {
-            marshaller.marshall(object, stream);
-        } catch (IOException e) {
-            throw new JsonbException(Messages.getMessage(MessageKeys.CANNOT_MARSHAL_OBJECT), e);
-        }
+        final Marshaller marshaller = new Marshaller(jsonbContext, runtimeType, stream);
+        marshaller.marshall(object);
+    }
+
+    @Override
+    public void close() throws Exception {
+        jsonbContext.getComponentInstanceCreator().close();
     }
 }

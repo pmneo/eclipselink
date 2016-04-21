@@ -18,7 +18,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 
 /**
- * Property of a class, field, getter and setter methods.
+ * Property of a class, field, getter and setter methods (javabean alike).
  *
  * @author Roman Grigoriadi
  */
@@ -26,14 +26,22 @@ public class Property {
 
     private final String name;
 
+    private final ClassModel declaringClassModel;
+
     private Field field;
 
     private Method getter;
 
     private Method setter;
 
-    public Property(String name) {
+    /**
+     * Create instance of property.
+     * @param name not null
+     * @param declaringClassModel Class model for a class declaring property.
+     */
+    public Property(String name, ClassModel declaringClassModel) {
         this.name = name;
+        this.declaringClassModel = declaringClassModel;
     }
 
     /**
@@ -91,6 +99,15 @@ public class Property {
      */
     public void setSetter(Method setter) {
         this.setter = setter;
+    }
+
+    /**
+     * ClassModel under construction for declaring class of this property.
+     * This ClassModel is not fully initialized yet.
+     * @return ClassModel
+     */
+    public ClassModel getDeclaringClassModel() {
+        return declaringClassModel;
     }
 
     /**

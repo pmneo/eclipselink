@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -17,18 +17,25 @@
  ******************************************************************************/
 package org.eclipse.persistence.internal.helper;
 
-import java.util.*;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import org.eclipse.persistence.descriptors.ClassDescriptor;
 import org.eclipse.persistence.descriptors.FetchGroupManager;
 import org.eclipse.persistence.exceptions.ConcurrencyException;
+import org.eclipse.persistence.internal.helper.linkedlist.ExposedNodeLinkedList;
+import org.eclipse.persistence.internal.identitymaps.CacheKey;
+import org.eclipse.persistence.internal.localization.LoggingLocalization;
 import org.eclipse.persistence.internal.queries.ContainerPolicy;
-import org.eclipse.persistence.mappings.DatabaseMapping;
-import org.eclipse.persistence.internal.sessions.*;
-import org.eclipse.persistence.internal.identitymaps.*;
-import org.eclipse.persistence.internal.localization.TraceLocalization;
-import org.eclipse.persistence.internal.helper.linkedlist.*;
+import org.eclipse.persistence.internal.sessions.AbstractSession;
+import org.eclipse.persistence.internal.sessions.MergeManager;
+import org.eclipse.persistence.internal.sessions.ObjectChangeSet;
+import org.eclipse.persistence.internal.sessions.UnitOfWorkChangeSet;
+import org.eclipse.persistence.internal.sessions.UnitOfWorkImpl;
 import org.eclipse.persistence.logging.SessionLog;
+import org.eclipse.persistence.mappings.DatabaseMapping;
 
 /**
  * INTERNAL:
@@ -277,7 +284,9 @@ public class WriteLockManager {
                         if (this.prevailingQueue.getFirst() == mergeManager) {
                             // wait on this object until it is free,  or until wait time expires because
                             // this thread is the prevailing thread
-                            activeCacheKey = waitOnObjectLock(descriptor, objectChangeSet.getId(), targetSession, (int)Math.round((Math.random()*500)));
+                            // see bug 483478
+                            activeCacheKey = waitOnObjectLock(descriptor, objectChangeSet.getId(),
+                                    targetSession, (int) Math.round(((0.001d + Math.random()) * 500)));
                         }
                         if (activeCacheKey == null) {
                             // failed to acquire lock, release all acquired
@@ -319,7 +328,7 @@ public class WriteLockManager {
                                                     activeCacheKey.wait(MAX_WAIT);
                                                     if (System.currentTimeMillis() - time >= MAX_WAIT){
                                                         Object[] params = new Object[]{MAX_WAIT /1000, descriptor.getJavaClassName(), activeCacheKey.getKey(), thread.getName()};
-                                                        StringBuilder buffer = new StringBuilder(TraceLocalization.buildMessage("max_time_exceeded_for_acquirerequiredlocks_wait", params));
+                                                        StringBuilder buffer = new StringBuilder(LoggingLocalization.buildMessage("max_time_exceeded_for_acquirerequiredlocks_wait", params));
                                                         StackTraceElement[] trace = thread.getStackTrace();
                                                         for (StackTraceElement element : trace){
                                                             buffer.append("\t\tat");

@@ -1,5 +1,7 @@
 package org.eclipse.persistence.json.bind.internal.conversion;
 
+import org.eclipse.persistence.json.bind.model.Customization;
+
 import java.lang.reflect.Type;
 
 /**
@@ -16,7 +18,7 @@ public class DoubleTypeConverter extends AbstractTypeConverter<Double> {
     }
 
     @Override
-    public Double fromJson(String jsonValue, Type type) {
+    public Double fromJson(String jsonValue, Type type, Customization customization) {
         switch (jsonValue) {
             case NAN:
                 return Double.NaN;
@@ -29,15 +31,15 @@ public class DoubleTypeConverter extends AbstractTypeConverter<Double> {
     }
 
     @Override
-    public String toJson(Double object) {
+    public String toJson(Double object, Customization customization) {
         if (object.isInfinite()
                 && object > 0) {
-            return quoteString(POSITIVE_INFINITY);
+            return POSITIVE_INFINITY;
         } else if (object.isInfinite()
                 && object < 0) {
-            return quoteString(NEGATIVE_INFINITY);
+            return NEGATIVE_INFINITY;
         } else if (object.isNaN()) {
-            return quoteString(NAN);
+            return NAN;
         }
         return String.valueOf(object);
     }

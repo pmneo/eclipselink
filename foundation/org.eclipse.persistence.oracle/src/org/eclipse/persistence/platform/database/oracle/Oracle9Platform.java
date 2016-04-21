@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -26,39 +26,51 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
-
-import java.util.*;
-
-import oracle.jdbc.OracleConnection;
-import oracle.jdbc.OraclePreparedStatement;
-import oracle.jdbc.OracleTypes;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.Vector;
 
 import org.eclipse.persistence.config.PersistenceUnitProperties;
-import org.eclipse.persistence.expressions.ExpressionOperator;
-import org.eclipse.persistence.internal.expressions.SpatialExpressionOperators;
-import oracle.sql.OPAQUE;
-import oracle.sql.TIMESTAMP;
-import oracle.sql.TIMESTAMPLTZ;
-import oracle.sql.TIMESTAMPTZ;
 import org.eclipse.persistence.exceptions.ConversionException;
 import org.eclipse.persistence.exceptions.DatabaseException;
 import org.eclipse.persistence.exceptions.QueryException;
-import org.eclipse.persistence.internal.databaseaccess.*;
-import org.eclipse.persistence.platform.database.OraclePlatform;
-import org.eclipse.persistence.queries.Call;
-import org.eclipse.persistence.queries.ValueReadQuery;
-import org.eclipse.persistence.internal.helper.*;
+import org.eclipse.persistence.expressions.ExpressionOperator;
+import org.eclipse.persistence.internal.databaseaccess.Accessor;
+import org.eclipse.persistence.internal.databaseaccess.BindCallCustomParameter;
+import org.eclipse.persistence.internal.databaseaccess.ConnectionCustomizer;
+import org.eclipse.persistence.internal.databaseaccess.DatabaseCall;
+import org.eclipse.persistence.internal.databaseaccess.DatabasePlatform;
+import org.eclipse.persistence.internal.databaseaccess.FieldTypeDefinition;
+import org.eclipse.persistence.internal.databaseaccess.Platform;
+import org.eclipse.persistence.internal.expressions.SpatialExpressionOperators;
+import org.eclipse.persistence.internal.helper.ClassConstants;
+import org.eclipse.persistence.internal.helper.DatabaseField;
+import org.eclipse.persistence.internal.helper.Helper;
+import org.eclipse.persistence.internal.helper.JavaPlatform;
+import org.eclipse.persistence.internal.platform.database.XMLTypePlaceholder;
 import org.eclipse.persistence.internal.platform.database.oracle.TIMESTAMPHelper;
 import org.eclipse.persistence.internal.platform.database.oracle.TIMESTAMPLTZWrapper;
 import org.eclipse.persistence.internal.platform.database.oracle.TIMESTAMPTZWrapper;
 import org.eclipse.persistence.internal.platform.database.oracle.TIMESTAMPTypes;
-import org.eclipse.persistence.internal.platform.database.XMLTypePlaceholder;
 import org.eclipse.persistence.internal.platform.database.oracle.XMLTypeFactory;
 import org.eclipse.persistence.internal.security.PrivilegedAccessHelper;
 import org.eclipse.persistence.internal.security.PrivilegedClassForName;
 import org.eclipse.persistence.internal.security.PrivilegedGetConstructorFor;
 import org.eclipse.persistence.internal.security.PrivilegedInvokeConstructor;
 import org.eclipse.persistence.internal.sessions.AbstractSession;
+import org.eclipse.persistence.queries.Call;
+import org.eclipse.persistence.queries.ValueReadQuery;
+
+import oracle.jdbc.OracleConnection;
+import oracle.jdbc.OraclePreparedStatement;
+import oracle.jdbc.OracleTypes;
+import oracle.sql.OPAQUE;
+import oracle.sql.TIMESTAMP;
+import oracle.sql.TIMESTAMPLTZ;
+import oracle.sql.TIMESTAMPTZ;
 
 /**
  * <p><b>Purpose:</b>
@@ -107,6 +119,9 @@ public class Oracle9Platform extends Oracle8Platform {
 
     private XMLTypeFactory xmlTypeFactory;
 
+    /** User name retrieved from JDBC connection in {@link #initializeConnectionData(Connection)}. */
+    private transient String connectionUserName;
+
     /**
      * Please ensure that following declarations stay as it is. Having them ensures that oracle jdbc driver available
      * in classpath when this class loaded.
@@ -120,6 +135,7 @@ public class Oracle9Platform extends Oracle8Platform {
 
     public Oracle9Platform(){
         super();
+        connectionUserName = null;
     }
 
     /**
@@ -131,6 +147,7 @@ public class Oracle9Platform extends Oracle8Platform {
             super(obj);
         }
         //Bug5200836, use unwrapped connection if it is NType parameter.
+        @Override
         public boolean shouldUseUnwrappedConnection() {
             return true;
         }
@@ -151,6 +168,7 @@ public class Oracle9Platform extends Oracle8Platform {
         *
         * Called only by DatabasePlatform.setParameterValueInDatabaseCall method
         */
+        @Override
         public void set(DatabasePlatform platform, PreparedStatement statement, int index, AbstractSession session) throws SQLException {
             // Binding starts with a 1 not 0. Make sure that index > 0
             ((oracle.jdbc.OraclePreparedStatement)statement).setFormOfUse(index, oracle.jdbc.OraclePreparedStatement.FORM_NCHAR);
@@ -162,6 +180,7 @@ public class Oracle9Platform extends Oracle8Platform {
     /**
      * Copy the state into the new platform.
      */
+    @Override
     public void copyInto(Platform platform) {
         super.copyInto(platform);
         if (!(platform instanceof Oracle9Platform)) {
@@ -309,6 +328,7 @@ public class Oracle9Platform extends Oracle8Platform {
      * @param max
      * @return
      */
+    @Override
     protected String buildFirstRowsHint(int max){
         return HINT_START + '(' + max + ')'+ HINT_END;
     }
@@ -461,11 +481,14 @@ public class Oracle9Platform extends Oracle8Platform {
         this.driverVersion = connection.getMetaData().getDriverVersion();
         // printCalendar for versions greater or equal 9 and less than 10.2.0.4
         this.shouldPrintCalendar = Helper.compareVersions("9", this.driverVersion) <= 0 && Helper.compareVersions(this.driverVersion, "10.2.0.4") < 0;
-        if( Helper.compareVersions(this.driverVersion, "11.1.0.7") >= 0) {
-            if(connection instanceof OracleConnection) {
-                String timestampTzInGmtPropStr = ((OracleConnection)connection).getProperties().getProperty("oracle.jdbc.timestampTzInGmt", "true");
+        if (Helper.compareVersions(this.driverVersion, "11.1.0.7") >= 0) {
+            if( connection instanceof OracleConnection ) {
+                final OracleConnection oraConn = (OracleConnection)connection;
+                String timestampTzInGmtPropStr = oraConn.getProperties().getProperty("oracle.jdbc.timestampTzInGmt", "true");
+                this.connectionUserName = oraConn.getUserName();
                 this.isTimestampInGmt = timestampTzInGmtPropStr.equalsIgnoreCase("true");
             } else {
+                this.connectionUserName = connection.getMetaData().getUserName();
                 this.isTimestampInGmt = true;
             }
             if (Helper.compareVersions(this.driverVersion, "11.2.0.2") >= 0) {
@@ -508,7 +531,7 @@ public class Oracle9Platform extends Oracle8Platform {
     /**
      *  INTERNAL:
      *  Note that index (not index+1) is used in statement.setObject(index, parameter)
-     *    Binding starts with a 1 not 0, so make sure that index > 0.
+     *    Binding starts with a 1 not 0, so make sure that index &gt; 0.
      *  Treat Calendar separately. Bind Calendar as TIMESTAMPTZ.
      */
     @Override
@@ -939,4 +962,25 @@ public class Oracle9Platform extends Oracle8Platform {
     public void setShouldTruncateDate(boolean shouldTruncateDate) {
         this.shouldTruncateDate = shouldTruncateDate;
     }
+
+    /**
+     * INTERNAL:
+     * User name from JDBC connection is stored in {@link #initializeConnectionData(Connection)}.
+     * @return Always returns {@code true}
+     */
+    @Override
+    public boolean supportsConnectionUserName() {
+        return true;
+    }
+
+    /**
+     * INTERNAL:
+     * Returns user name retrieved from JDBC connection. {@link #initializeConnectionData(Connection)} shall be called
+     * before this method.
+     * @return User name retrieved from JDBC connection.
+     */
+    public String getConnectionUserName() {
+        return this.connectionUserName;
+    }
+
 }

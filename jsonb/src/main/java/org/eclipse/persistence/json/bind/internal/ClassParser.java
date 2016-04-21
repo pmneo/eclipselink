@@ -40,11 +40,9 @@ class ClassParser {
     /**
      * Parse class fields and getters setters. Merge to java bean like properties.
      *
-     * @param clazz Class to parse
      * @return model of a class
      */
-    public ClassModel parse(Class<?> clazz) {
-        final ClassModel classModel = new ClassModel(clazz);
+    public void parseProperties(ClassModel classModel) {
 
         final Map<String, Property> classProperties = new HashMap<>();
 
@@ -54,10 +52,9 @@ class ClassParser {
 
         classProperties.values().stream().forEach((property)->{
             PropertyModel propertyModel = new PropertyModel(classModel, property);
-            classModel.getFields().put(propertyModel.getPropertyName(), propertyModel);
+            classModel.addProperty(propertyModel);
         });
 
-        return classModel;
     }
 
     private void parseMethods(ClassModel classModel, Map<String, Property> classProperties) {
@@ -70,7 +67,7 @@ class ClassParser {
 
             Property property = classProperties.get(propertyName);
             if (property == null) {
-                property= new Property(propertyName);
+                property= new Property(propertyName, classModel);
                 classProperties.put(propertyName, property);
             }
 
@@ -88,7 +85,7 @@ class ClassParser {
             if (field.getName().startsWith(GENERATED_PREFIX)) {
                 continue;
             }
-            final Property property = new Property(name);
+            final Property property = new Property(name, classModel);
             property.setField(field);
             classProperties.put(name, property);
         }

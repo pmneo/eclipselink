@@ -1,5 +1,7 @@
 package org.eclipse.persistence.json.bind.internal.conversion;
 
+import org.eclipse.persistence.json.bind.model.Customization;
+
 import java.lang.reflect.Type;
 
 /**
@@ -12,7 +14,7 @@ public class EnumTypeConverter extends AbstractTypeConverter<Enum> {
     }
 
     @Override
-    public Enum fromJson(String jsonValue, Type type) {
+    public Enum fromJson(String jsonValue, Type type, Customization customization) {
         Class<? extends Enum> en = (Class<? extends Enum>) type;
         for (Enum c : en.getEnumConstants()) {
             if (c.name().equals(jsonValue)) {
@@ -23,8 +25,13 @@ public class EnumTypeConverter extends AbstractTypeConverter<Enum> {
     }
 
     @Override
-    public String toJson(Enum object) {
-        return quoteString(object.toString());
+    public boolean supportsFromJson(Class<?> type) {
+        return type.isEnum();
+    }
+
+    @Override
+    public String toJson(Enum object, Customization customization) {
+        return object.toString();
     }
 
     @Override

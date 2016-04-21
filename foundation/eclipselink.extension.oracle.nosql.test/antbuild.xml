@@ -30,14 +30,17 @@
 * Contributors:
 *     tware - initial API and implementation
 *     egwin - update to adopt calling standards
+*     03/30/2016-2.7 Tomas Kraus
+*       - 490677: Database connection properties made configurable in test.properties
 #******************************************************************************/-->
 <!-- This ant project includes the following tasks:
         - build (default) : cleans, compiles, and packages all tests
         - clean   : cleans up all generated files and dirs
         - compile : compiles all tests
         - package : packages test jar
-        - test : runs tests
-        - test-oracle: Runs Core Oracle-specific tests
+        - test : Runs Oracle NoSQL and AQ tests
+        - test-oracle-nosql: Runs Oracle NoSQL tests
+        - test-oracle-aq:    Runs Oracle AQ tests
 
         It requires some configuration of the build.properties and test.properties to run.
 -->
@@ -67,13 +70,33 @@
     <property name="ora_nosql_test.plugins.dir"          value="../plugins"/>
 
     <!-- Allows a user to overide certain user specific properties. -->
-    <condition property="custom.properties.message" value="Loading ${user.home}/build.properties..."
-                                                     else="Custom properties file '${user.home}/build.properties' not found to load.">
+    <condition property="custom.bld.properties.message"
+        value="Loading ${user.home}/build.properties"
+        else="Skipping ${user.home}/build.properties, file does not exist">
         <available file="${user.home}/build.properties"/>
     </condition>
-    <echo message="${custom.properties.message}"/>
+    <echo message="${custom.bld.properties.message}"/>
     <property file="${user.home}/build.properties"/>
+
+    <condition property="custom.cmd.properties.message"
+        value="Loading ${test.properties}"
+        else="Skipping ${test.properties}, file does not exist">
+        <and>
+            <isset property="test.properties"/>
+            <available file="${test.properties}"/>
+        </and>
+    </condition>
+    <echo message="${custom.cmd.properties.message}"/>
+    <property file="${test.properties}"/>
+
+    <condition property="custom.tst.properties.message"
+        value="Loading ${user.home}/test.properties"
+        else="Skipping ${user.home}/test.properties, file does not exist">
+        <available file="${user.home}/test.properties"/>
+    </condition>
+    <echo message="${custom.tst.properties.message}"/>
     <property file="${user.home}/test.properties"/>
+
     <property file="${ora_nosql_test.build.location}/antbuild.properties"/>
     <property file="${ora_nosql_test.build.location}/${test.properties}"/>
     <property file="${ora_nosql_test.build.location}/test.properties"/>
@@ -443,8 +466,7 @@
         <jar jarfile="${oracle.nosql.test.jar}">
             <fileset dir="${ora_nosql_test.classes.dir}"
                      includes="org/eclipse/persistence/**/*.class"
-                     excludes="org/eclipse/persistence/testing/models/jpa/**,
-                               org/eclipse/persistence/testing/tests/jpa/**"/>
+                     excludes="org/eclipse/persistence/testing/models/jpa/**"/>
             <fileset dir="${ora_nosql_test.resource.dir}"
                      includes="org/eclipse/persistence/**"/>
         </jar>
@@ -456,22 +478,31 @@
         <copy file="${ora_nosql_test.2.core.test.dir}/${resource.dir}/java.policy.allpermissions" todir="${ora_nosql_test.run.dir}" overwrite="true"/>
     </target>
 
-    <!-- Default test target, runs test.class from test.properties (default is OracleTestModel). -->
-    <target name="test" depends="init_run">
-        <run_test testclass="${test.class}"  dburl="${db.url}"/>
-        <generate.report/>
-    </target>
-
-    <!-- Runs Core Oracle NoSQL tests. -->
-    <target name="test-oracle-nosql" depends="init_run">
-        <run_test testclass="org.eclipse.persistence.testing.tests.eis.nosql.NoSQLTestModel"  dburl="${db.url}"/>
+    <!-- Runs both Oracle NoSQL and AQ tests.
+       - Requires Oracle NoSQL and relational with AQ extensions databases. -->
+    <target name="test" depends="init_run, run-nosql-test, run-aq-test">
         <generate_report/>
     </target>
 
-    <!-- Runs Core Oracle AQ tests. -->
-    <target name="test-oracle-aq" depends="init_run">
-        <run_test testclass="org.eclipse.persistence.testing.tests.eis.aq.AQTestModel"  dburl="${db.url}"/>
+    <!-- Runs Oracle NoSQL tests. Requires Oracle NoSQL database. -->
+    <target name="test-oracle-nosql" depends="init_run, run-nosql-test">
         <generate_report/>
+    </target>
+
+    <!-- Runs Oracle AQ tests. Requires Oracle relational database with AQ extensions. -->
+    <target name="test-oracle-aq" depends="init_run, run-aq-test">
+        <generate_report/>
+    </target>
+
+    <!-- Execute Oracle NoSQL tests with no initialization and reports generation. -->
+    <target name="run-nosql-test">
+        <run_nosql_test testclass="org.eclipse.persistence.testing.tests.eis.nosql.NoSQLTestSuite"/>
+        <run_nosql_test testclass="org.eclipse.persistence.testing.tests.jpa.nosql.NoSQLJPATestSuite"/>
+    </target>
+
+    <!-- Runs Oracle AQ tests with no initialization and reports generation. -->
+    <target name="run-aq-test">
+        <run_test testclass="org.eclipse.persistence.testing.tests.eis.aq.AQTestSuite" dburl="${db.url}"/>
     </target>
 
     <!-- Prompt runner test target, runs test.class from test.properties (default is OracleTestModel). -->
@@ -507,7 +538,30 @@
         </java>
     </target>
 
-    <!-- Generic target for running tests. -->
+    <!-- Generic target for running NoSQL tests. -->
+    <macrodef name="run_nosql_test">
+        <attribute name="testclass"/>
+        <sequential>
+            <echo>Running test on ${nosql.url}</echo>
+            <!-- Can be set e.g. in test.properties to add VM options for a particular platform/driver  -->
+            <property name="additional.jvmargs" value="-Ddummy2=dummy"/>
+            <junit printsummary="yes" failureproperty="junit.failed" fork="yes" forkmode="once" showoutput="true" maxmemory="512m" dir="${run.dir}">
+                <jvmarg value="-Declipselink.logging.level=${logging.level}"/>
+                <jvmarg value="-Dnosql.url=${nosql.url}"/>
+                <jvmarg value="-Djava.security.manager"/>
+                <jvmarg value="-Djava.security.policy=./java.policy.allpermissions"/>
+                <jvmarg line="${additional.jvmargs}"/>
+                <classpath>
+                    <path refid="ora_nosql_test.run.path"/>
+                </classpath>
+                <formatter type="xml"/>
+                <test name="@{testclass}" haltonfailure="no" outfile="${report.dir}/@{testclass}-test-results">
+                </test>
+            </junit>
+        </sequential>
+    </macrodef>
+
+	<!-- Generic target for running tests. -->
     <macrodef name="run_test">
         <attribute name="testclass"/>
         <attribute name="dburl"/>

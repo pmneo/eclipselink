@@ -12,7 +12,10 @@
  ******************************************************************************/
 package org.eclipse.persistence.json.bind.internal.unmarshaller;
 
+import org.eclipse.persistence.json.bind.internal.JsonbContext;
 import org.eclipse.persistence.json.bind.internal.ReflectionUtils;
+import org.eclipse.persistence.json.bind.model.ClassModel;
+import org.eclipse.persistence.json.bind.model.Customization;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -25,7 +28,7 @@ import java.util.Map;
  *
  * @author Roman Grigoriadi
  */
-public class MapItem extends CurrentItem<Map<?, ?>> implements EmbeddedItem {
+public class MapItem extends AbstractItem<Map<?, ?>> implements UnmarshallerItem<Map<?, ?>>, EmbeddedItem {
 
     /**
      * Type of value in the map.
@@ -36,7 +39,7 @@ public class MapItem extends CurrentItem<Map<?, ?>> implements EmbeddedItem {
     /**
      * @param builder
      */
-    protected MapItem(CurrentItemBuilder builder) {
+    protected MapItem(UnmarshallerItemBuilder builder) {
         super(builder);
         mapValueRuntimeType = getRuntimeType() instanceof ParameterizedType ?
                 ReflectionUtils.resolveType(this, ((ParameterizedType) getRuntimeType()).getActualTypeArguments()[1])
@@ -45,17 +48,17 @@ public class MapItem extends CurrentItem<Map<?, ?>> implements EmbeddedItem {
 
 
     @Override
-    void appendItem(CurrentItem valueItem) {
+    public void appendItem(UnmarshallerItem<?> valueItem) {
         appendCaptor(valueItem.getJsonKeyName(), valueItem.getInstance());
     }
 
     @Override
-    void appendValue(String key, String value, JsonValueType jsonValueType) {
+    public void appendValue(String key, String value, JsonValueType jsonValueType) {
         if (jsonValueType == JsonValueType.NULL) {
             appendCaptor(key, null);
             return;
         }
-        Object convertedValue = getTypeConverter().fromJson(value, ReflectionUtils.getRawType(resolveValueType(mapValueRuntimeType, jsonValueType)));
+        Object convertedValue = getTypeConverter().fromJson(value, ReflectionUtils.getRawType(resolveValueType(mapValueRuntimeType, jsonValueType)), getCustomization());
         appendCaptor(key, convertedValue);
     }
 
@@ -65,8 +68,18 @@ public class MapItem extends CurrentItem<Map<?, ?>> implements EmbeddedItem {
     }
 
     @Override
-    CurrentItem<?> newItem(String fieldName, JsonValueType jsonValueType) {
+    public UnmarshallerItem<?> newItem(String fieldName, JsonValueType jsonValueType) {
         return newCollectionOrMapItem(fieldName, mapValueRuntimeType, jsonValueType);
+    }
+
+    private Customization getCustomization() {
+        /* TODO (marshaller refactoring) consider honoring JsonbAnnotation on Map fields after MR.
+        if (getWrapper() != null) {
+            return getWrapperPropertyModel().getCustomization();
+        }*/
+        ClassModel componentClassModel = JsonbContext.getInstance().getMappingContext()
+                .getClassModel(ReflectionUtils.getRawType(mapValueRuntimeType));
+        return componentClassModel != null ? componentClassModel.getClassCustomization() : null;
     }
 
 }

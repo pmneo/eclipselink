@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2016 Oracle and/or its affiliates.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -343,7 +343,7 @@ public class IsolatedHashMapTest extends JUnitTestCase {
             final ServerPlatform originalPlatform
                     = (ServerPlatform)ReflectionHelper.getPrivateStatic(IsolatedHashMap.class, "serverPlatform");
             final boolean originalsupport
-                    = (boolean)ReflectionHelper.getPrivateStatic(IsolatedHashMap.class, "supportPartitions");
+                    = ReflectionHelper.getPrivateStatic(IsolatedHashMap.class, "supportPartitions");
             log.log(SessionLog.INFO,
                     "Original platform field instance: " + originalPlatform.getClass().getName());
             log.log(SessionLog.INFO, "Original partitions support flag: " + Boolean.toString(originalsupport));
@@ -365,7 +365,7 @@ public class IsolatedHashMapTest extends JUnitTestCase {
             // Return original serverPlatform instance into IsolatedHashMap.
             ReflectionHelper.setPrivateStaticFinal(IsolatedHashMap.class, "serverPlatform", originalPlatform);
             ReflectionHelper.setPrivateStaticFinal(IsolatedHashMap.class, "supportPartitions", originalsupport);
-        } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+        } catch (ReflectiveOperationException | SecurityException e) {
             log.logThrowable(SessionLog.WARNING, e);
             e.printStackTrace();
         }
