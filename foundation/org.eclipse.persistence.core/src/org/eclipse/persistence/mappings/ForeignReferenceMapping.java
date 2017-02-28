@@ -568,22 +568,24 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                 // Execute queries by batch if too many rows.
                 int rowsSize = parentRows.size();
                 int size = Math.min(rowsSize, originalPolicy.getSize());
-                if (size == 0) {
-                    return null;
-                }
                 int startIndex = 0;
-                if (size != rowsSize) {
+
+                if (size == 0) {
+                    startIndex = -1;
+                }
+                else if (size != rowsSize) {
                     // If only fetching a page, need to make sure the row we want is in the page.
                     startIndex = parentRows.indexOf(sourceRow);
-                    
-                    if( startIndex < 0 ) { //this may be a bug, so fake the result
-                    	parentRows = new ArrayList<>();
-                    	parentRows.add( sourceRow );
-                    	rowsSize = parentRows.size();
-                        size = Math.min( rowsSize, originalPolicy.getSize() );
-                        startIndex = 0;
-                    }
                 }
+
+                if( startIndex < 0 ) { //this may be a bug, so fake the result
+                    parentRows = new ArrayList<>();
+                    parentRows.add( sourceRow );
+                    rowsSize = parentRows.size();
+                    size = Math.min( rowsSize, originalPolicy.getSize() );
+                    startIndex = 0;
+                }
+
                 List foreignKeyValues = new ArrayList(size);
                 Set foreignKeys = new HashSet(size);
                 int index = 0;
@@ -607,14 +609,13 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                         
                         count += ( rowForeignKeys.length - 1 );
                         
-                        for( Object foreignKey : rowForeignKeys )
-                        {
+                        for( Object foreignKey : rowForeignKeys ) {
                             if (foreignKey == null) {
                                 // Ignore null foreign keys.
                                 count--;
                             } else {
-                            cachedObject = checkCacheForBatchKey(row, foreignKey, batchedObjects, batchQuery, originalQuery, session);
-                            if (cachedObject != null) {
+                                cachedObject = checkCacheForBatchKey(row, foreignKey, batchedObjects, batchQuery, originalQuery, session);
+                                if (cachedObject != null) {
                                 // Avoid fetching things a cache hit occurs for.
                                     count--;
                                 } else {
@@ -634,12 +635,10 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                                                 foreignKeyValue = Arrays.asList(key);
                                             }
 
-                                            if( foreignKeyValue == null )
-                                            {
+                                            if( foreignKeyValue == null ) {
                                                 count --;
                                             }
-                                            else
-                                            {
+                                            else {
                                                 foreignKeyValues.add(foreignKeyValue);
                                                 foreignKeys.add(foreignKey);
                                             }
@@ -649,8 +648,9 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                             }
                         }
                     }
+                    index++;
                 }
-                index++;
+                
                 // Need to compute remaining rows, this is tricky because a page in the middle could have been processed.
                 List<AbstractRecord> remainingParentRows;
                 if (startIndex == 0) {

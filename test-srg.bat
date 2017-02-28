@@ -1,2 +1,2 @@
 call set_env.bat
-ant -f antbuild.xml build package-src-jar test-srg
+ant -f antbuild.xml clean build package-src-jar test-srg
