@@ -72,6 +72,8 @@
  *       - 480787 : Wrap several privileged method calls with a doPrivileged block
  *     12/03/2015-2.6 Dalia Abo Sheasha
  *       - 483582: Add the javax.persistence.sharedCache.mode property
+ *     09/29/2016-2.7 Tomas Kraus
+ *       - 426852: @GeneratedValue(strategy=GenerationType.IDENTITY) support in Oracle 12c
  *****************************************************************************/
 package org.eclipse.persistence.internal.jpa;
 
@@ -376,13 +378,13 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
     protected String state = STATE_INITIAL;
 
     /**
-     *     Initial -----------> PredeployFailed ---
+     *     Initial -----------&gt; PredeployFailed ---
      *           |                                |
      *           V                                |
-     *         Predeployed ---> DeployFailed --   |
+     *         Predeployed ---&gt; DeployFailed --   |
      *           |                            |   |
      *           V                            V   V
-     *         HalfDeployed --> Deployed -> Undeployed
+     *         HalfDeployed --&gt; Deployed -&gt; Undeployed
      *           |                            ^
      *           V                            |
      *         DeployFailed -------------------
@@ -802,6 +804,8 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
                             writeDDL(deployProperties, getDatabaseSession(deployProperties), classLoaderToUse);
                         }
                     }
+                    // Initialize platform specific identity sequences.
+                    session.getDatasourcePlatform().initIdentitySequences(getDatabaseSession(), MetadataProject.DEFAULT_IDENTITY_GENERATOR);
                     updateTunerPostDeploy(deployProperties, classLoaderToUse);
                     this.deployLock.release();
                     isLockAcquired = false;
@@ -1666,7 +1670,7 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
      * (by JavaSECMPInitializer.callPredeploy, typically in preMain).
      * That provides 1 to 1 correspondence between factoryCount and the number of open factories.
      *
-     * In case factoryCount > 0 the method just increments factoryCount.
+     * In case factoryCount &gt; 0 the method just increments factoryCount.
      * factory == 0 triggers creation of a new session.
      *
      * This method and undeploy - the only methods altering factoryCount - should be synchronized.

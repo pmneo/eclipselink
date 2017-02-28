@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2016 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -101,6 +101,8 @@
  *       - JPARS 2.0 related changes
  *     12/03/2015-2.6 Dalia Abo Sheasha
  *       - 483582: Add the javax.persistence.sharedCache.mode property
+ *     12/05/2016-2.6 Jody Grassel
+ *       - 443546: Converter autoApply does not work for primitive types
  ******************************************************************************/
 package org.eclipse.persistence.internal.jpa.metadata;
 
@@ -597,7 +599,7 @@ public class MetadataProject {
      * Map is required.
      * <p>
      * We do not use the non-persisting MAPPED_SUPERCLASS_RESERVED_PK_NAME PK field.
-     * Normally when the MappedSuperclass is part of an inheritance hierarchy of the form MS->MS->E,
+     * Normally when the MappedSuperclass is part of an inheritance hierarchy of the form MS-&gt;MS-&gt;E,
      * where there is an PK Id on the root Entity E, we need to add the
      * MAPPED_SUPERCLASS_RESERVED_PK_NAME PK field solely for metadata processing to complete.
      * Why? because even though we treat MappedSuperclass objects as a RelationalDescriptor - we only persist
@@ -1008,7 +1010,51 @@ public class MetadataProject {
      * Return the converter for the auto apply class type.
      */
     public ConverterAccessor getAutoApplyConverter(MetadataClass cls) {
-        return m_autoApplyConvertAccessors.get(cls.getName());
+        ConverterAccessor ca = m_autoApplyConvertAccessors.get(cls.getName());
+        if (ca == null) {
+            String wrapperType = resolvePrimitiveWrapper(cls);
+            if (wrapperType != null) {
+                ca = m_autoApplyConvertAccessors.get(wrapperType);
+            }
+        }
+        
+        return ca;
+    }
+    
+    private String resolvePrimitiveWrapper(MetadataClass cls) {
+        String wrapperType = null;
+        
+        if (cls.isPrimitive() && !cls.isArray() && !m_autoApplyConvertAccessors.isEmpty()) {
+            // Look for Converters for the Wrapper equivalent of the primitive
+            switch (cls.getTypeName()) {
+            case "I": // int
+                wrapperType = "java.lang.Integer";
+                break;
+            case "J": // long
+                wrapperType = "java.lang.Long";
+                break;
+            case "S": // short
+                wrapperType = "java.lang.Short";
+                break;
+            case "Z": // boolean
+                wrapperType = "java.lang.Boolean";
+                break;
+            case "F": // float
+                wrapperType = "java.lang.Float";
+                break;
+            case "D": // double
+                wrapperType = "java.lang.Double";
+                break;
+            case "C": // char
+                wrapperType = "java.lang.Character";
+                break;
+            case "B": // byte
+                wrapperType = "java.lang.Byte";
+                break;
+            default: // unknown
+            }
+        }
+        return wrapperType;
     }
 
     /**
@@ -1177,9 +1223,9 @@ public class MetadataProject {
      * Returns the collection of metamodel MappedSuperclassAccessors. This
      * collection is NOT and should NOT be used for any deployment descriptor
      * metadata processing. It is used solely with the metamodel.
-     * @see getMappedSuperclass(MetadataClass)
-     * @see getMappedSuperclass(String)
-     * @see getMappedSuperclasses()
+     * @see #getMappedSuperclassAccessor(MetadataClass)
+     * @see #getMappedSuperclassAccessor(String)
+     * @see #getMappedSuperclasses()
      * @since EclipseLink 1.2 for the JPA 2.0 Reference Implementation
      */
     public Collection<MappedSuperclassAccessor> getMetamodelMappedSuperclasses() {
@@ -1346,7 +1392,15 @@ public class MetadataProject {
      * Return true if there is an auto-apply converter for the given cls.
      */
     public boolean hasAutoApplyConverter(MetadataClass cls) {
-        return m_autoApplyConvertAccessors.containsKey(cls.getName());
+        boolean hasCA = m_autoApplyConvertAccessors.containsKey(cls.getName());
+        if (hasCA == false) {
+            String wrapperType = resolvePrimitiveWrapper(cls);
+            if (wrapperType != null) {
+                hasCA = m_autoApplyConvertAccessors.containsKey(wrapperType);
+            }
+        }
+        
+        return hasCA;
     }
 
     /**

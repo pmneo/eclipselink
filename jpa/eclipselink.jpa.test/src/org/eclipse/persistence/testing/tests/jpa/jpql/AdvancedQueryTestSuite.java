@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -29,6 +29,7 @@ import javax.persistence.PessimisticLockException;
 import javax.persistence.Query;
 import javax.persistence.EntityManager;
 import javax.persistence.RollbackException;
+import javax.persistence.TypedQuery;
 
 import junit.framework.Test;
 import junit.framework.TestSuite;
@@ -2710,14 +2711,12 @@ public class AdvancedQueryTestSuite extends JUnitTestCase {
     }
 
     public void testQueryPESSIMISTICLockWithLimit() throws InterruptedException {
-        if (getDatabaseSession().getPlatform().isOracle()) {
-            return;
-        }
         clearCache();
         EntityManager em = createEntityManager();
         beginTransaction(em);
         try {
-            Query query = em.createQuery("Select e from Employee e");
+            TypedQuery<Employee> query = em.createQuery("Select e from Employee e where e.lastName != :lastName", Employee.class);
+            query.setParameter("lastName", "Chanley");
             query.setHint(QueryHints.PESSIMISTIC_LOCK, PessimisticLock.Lock);
             query.setFirstResult(5);
             query.setMaxResults(2);
@@ -2737,14 +2736,14 @@ public class AdvancedQueryTestSuite extends JUnitTestCase {
                         public void run() {
                         try {
                             beginTransaction(em2);
-                            Query query2 = em2.createQuery("select e from Employee e where e.id = :id");
+                            TypedQuery<Employee> query2 = em2.createQuery("select e from Employee e where e.id = :id", Employee.class);
                             query2.setParameter("id", e.getId());
                             query2.setHint(QueryHints.PESSIMISTIC_LOCK_TIMEOUT, 5);
-                            Employee emp = (Employee) query2.getSingleResult(); // might wait for lock to be released
+                            Employee emp = query2.getSingleResult(); // might wait for lock to be released
                             emp.setFirstName("Trouba");
                             commitTransaction(em2); // might wait for lock to be released
                         } catch (javax.persistence.RollbackException ex) {
-                            if (ex.getMessage().indexOf("org.eclipse.persistence.exceptions.DatabaseException") == -1) {
+                            if (!ex.getMessage().contains("org.eclipse.persistence.exceptions.DatabaseException")) {
                                 ex.printStackTrace();
                                 fail("it's not the right exception:" + ex);
                             }
@@ -2764,14 +2763,6 @@ public class AdvancedQueryTestSuite extends JUnitTestCase {
                     rollbackTransaction(em2);
                 }
                 closeEntityManager(em2);
-            }
-        // Oracle platform will throw UnsupportedOperationException when executing query with pessimistic locking
-        // and minimal query row limit.
-        } catch (PersistenceException e) {
-            // Let this test pass with UnsupportedOperationException on Oracle platform.
-            if (!getPlatform().isOracle() || !(e.getCause() instanceof QueryException)
-                    || !(e.getCause().getCause() instanceof UnsupportedOperationException)) {
-                throw e;
             }
         } finally {
             if (isTransactionActive(em)) {

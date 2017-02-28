@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -15,6 +15,8 @@
  *       - 389090: JPA 2.1 DDL Generation Support
  *     02/04/2013-2.5 Guy Pelletier
  *       - 389090: JPA 2.1 DDL Generation Support
+ *     05/26/2016-2.7 Tomas Kraus
+ *       - 494610: Session Properties map should be Map<String, Object>
  ******************************************************************************/
 package org.eclipse.persistence.internal.jpa;
 
@@ -189,8 +191,8 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory, Persisten
      *
      * @param serverSession
      */
-    public EntityManagerFactoryImpl(AbstractSession session) {
-        delegate = new EntityManagerFactoryDelegate(session, this);
+    public EntityManagerFactoryImpl(AbstractSession serverSession) {
+        delegate = new EntityManagerFactoryDelegate(serverSession, this);
     }
 
     public EntityManagerFactoryImpl(EntityManagerSetupImpl setupImpl, Map properties) {
@@ -214,7 +216,7 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory, Persisten
      * @param properties
      */
     @Override
-    public void refreshMetadata(Map properties){
+    public void refreshMetadata(Map<String, Object> properties){
         EntityManagerSetupImpl setupImpl = delegate.getSetupImpl();
         if (setupImpl == null){
             throw PersistenceUnitLoadingException.cannotRefreshEntityManagerFactoryCreatedFromSession(delegate.getServerSession().getName());

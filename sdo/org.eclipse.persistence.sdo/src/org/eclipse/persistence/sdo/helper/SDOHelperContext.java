@@ -32,8 +32,10 @@ import org.eclipse.persistence.sdo.SDOConstants;
 import org.eclipse.persistence.sdo.SDOResolvable;
 import org.eclipse.persistence.sdo.helper.delegates.SDODataFactoryDelegate;
 import org.eclipse.persistence.sdo.helper.delegates.SDOTypeHelperDelegate;
+import org.eclipse.persistence.sdo.helper.delegates.SDOTypeHelperDelegate.SDOWrapperTypeId;
 import org.eclipse.persistence.sdo.helper.delegates.SDOXMLHelperDelegate;
 import org.eclipse.persistence.sdo.helper.delegates.SDOXSDHelperDelegate;
+import org.eclipse.persistence.sdo.types.SDOWrapperType;
 
 import javax.management.AttributeChangeNotification;
 import javax.management.MBeanServer;
@@ -111,6 +113,8 @@ public class SDOHelperContext implements HelperContext {
     private static WeakHashMap<ClassLoader, WeakHashMap<String, WeakReference<HelperContext>>> userSetHelperContexts = new WeakHashMap<ClassLoader, WeakHashMap<String, WeakReference<HelperContext>>>();
     // keep a map of application names to application class loaders to handle redeploy
     private static ConcurrentHashMap<String, ClassLoader> appNameToClassLoaderMap = new ConcurrentHashMap<String, ClassLoader>();
+    // keep a map of application name to the wrapper types for that application
+    private static final ConcurrentHashMap<String,Map<SDOWrapperTypeId,SDOWrapperType>> SDO_WRAPPER_TYPES = new ConcurrentHashMap<>();
 
     // Application server identifiers
     private static String OC4J_CLASSLOADER_NAME = "oracle";
@@ -579,15 +583,17 @@ public class SDOHelperContext implements HelperContext {
      */
     private static void resetHelperContext(String key) {
         // remove entry from helperContext map
-        boolean successHc = removeAppFromMap(helperContexts, key);
+        boolean successHc = removeAppFromMap(helperContexts, key, false);
         // remove app's helperContextResolver
-        boolean successHcr = removeAppFromMap(HELPER_CONTEXT_RESOLVERS, key);
+        boolean successHcr = removeAppFromMap(HELPER_CONTEXT_RESOLVERS, key, true);
         if (LOGGER.isLoggable(Level.WARNING) && !successHc && !successHcr) {
             LOGGER.warning("No entries found in maps for application:" + key);
         }
 
         // remove the appName entry in the appNameToClassLoader map
         appNameToClassLoaderMap.remove(key);
+        // remove static SDOWrapperType instances bound to this application
+        SDO_WRAPPER_TYPES.remove(key);
         // remove the alias map for this app
         aliasMap.remove(key);
     }
@@ -597,22 +603,20 @@ public class SDOHelperContext implements HelperContext {
      *
      * @param map from which app value should be removed
      * @param appName application name
-     * @return
+     * @param removeDefaultClassloader whether to try removing the default classloader
+     * @return true if any removal took place
      */
-    private static boolean removeAppFromMap(Map map, String appName) {
-        Object result = map.remove(appName);
-        // there may be a loader/context pair to remove
-        if (result != null)
-            return true;
+    private static boolean removeAppFromMap(Map map, String appName, boolean removeDefaultClassloader) {
+        boolean result = map.remove(appName) != null;
         // there may be a loader/context pair to remove
         ClassLoader appLoader = appNameToClassLoaderMap.get(appName);
         if (appLoader != null) {
-            result = map.remove(appLoader);
-        } else {
+            result = result | map.remove(appLoader) != null;
+        } else if (removeDefaultClassloader) {
             // try with Thread ContextClassLoader
-            result = map.remove(Thread.currentThread().getContextClassLoader());
+            result = result | map.remove(Thread.currentThread().getContextClassLoader()) != null;
         }
-        return result != null;
+        return result;
     }
 
     /**
@@ -632,6 +636,22 @@ public class SDOHelperContext implements HelperContext {
         ClassLoader appLoader = hCtxMapKey.getLoader();
         // we will use the application name as the map key if set; otherwise we use the loader
         return appName != null ? appName : appLoader;
+    }
+
+    /**
+     * Bug #506919
+     * Retrieves the application name for current {@link ClassLoader}.
+     *
+     * @param classLoader the ClassLoader to use for searching application name
+     * @return the application name
+     */
+    private static String getApplicationName(ClassLoader classLoader) {
+        String classLoaderName = classLoader.getClass().getName();
+        // get a MapKeyLookupResult instance based on the context loader
+        MapKeyLookupResult hCtxMapKey = getContextMapKey(classLoader, classLoaderName);
+        // at this point we will have a loader and possibly an application name
+        String applicationName = hCtxMapKey.getApplicationName();
+        return applicationName != null? applicationName : "DEFAULT";
     }
 
     /**
@@ -1457,5 +1477,22 @@ public class SDOHelperContext implements HelperContext {
             }
             return DEFAULT_HCR.getHelperContext(id, classLoader);
         }
+    }
+
+    /**
+     * Returns the {@link SDOWrapperType} instances for current application
+     */
+    public static Map<SDOWrapperTypeId,SDOWrapperType> getWrapperTypes() {
+        return SDO_WRAPPER_TYPES.get(getApplicationName(Thread.currentThread().getContextClassLoader()));
+    }
+
+    /**
+     * Replaces the {@link SDOWrapperType} instances for current application with the ones passed as an argument
+     *
+     * @param wrapperTypes the SDOWrapperType instances to use for current application
+     * @return SDOWrapperType instances configured for current application
+     */
+    public static Map<SDOWrapperTypeId,SDOWrapperType> putWrapperTypes(Map<SDOWrapperTypeId,SDOWrapperType> wrapperTypes) {
+        return SDO_WRAPPER_TYPES.put(getApplicationName(Thread.currentThread().getContextClassLoader()), wrapperTypes);
     }
 }

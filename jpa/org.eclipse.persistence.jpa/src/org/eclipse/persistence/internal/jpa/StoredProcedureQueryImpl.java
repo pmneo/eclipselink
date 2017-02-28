@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -31,11 +31,11 @@
  ******************************************************************************/
 package org.eclipse.persistence.internal.jpa;
 
-import java.sql.Statement;
 import java.sql.CallableStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -88,25 +88,21 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
     protected boolean isOutputCursorResultSet = false;
 
     /**
-     * Base constructor for EJBQueryImpl. Initializes basic variables.
+     * Base constructor for StoredProcedureQueryImpl. Initializes basic variables.
      */
     protected StoredProcedureQueryImpl(EntityManagerImpl entityManager) {
         super(entityManager);
     }
 
     /**
-     * Create an EJBQueryImpl with a DatabaseQuery.
+     * Create an StoredProcedureQueryImpl with a DatabaseQuery.
      */
     public StoredProcedureQueryImpl(DatabaseQuery query, EntityManagerImpl entityManager) {
         super(query, entityManager);
     }
 
     /**
-     * Create an EJBQueryImpl with either a query name or an jpql string.
-     *
-     * @param isNamedQuery
-     *            determines whether to treat the queryDescription as jpql or a
-     *            query name.
+     * Create an StoredProcedureQueryImpl with a query name.
      */
     public StoredProcedureQueryImpl(String name, EntityManagerImpl entityManager) {
         super(entityManager);
@@ -304,6 +300,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws PersistenceException if the query execution exceeds the query
      * timeout value set and the transaction is rolled back
      */
+    @Override
     public boolean execute() {
         try {
             entityManager.verifyOpen();
@@ -361,6 +358,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * Execute an update or delete statement (from a stored procedure query).
      * @return the number of entities updated or deleted
      */
+    @Override
     public int executeUpdate() {
         try {
             // Need to throw TransactionRequiredException if there is no active transaction
@@ -472,6 +470,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws IllegalArgumentException if the position does not correspond to a
      * parameter of the query or is not an INOUT or OUT parameter
      */
+    @Override
     public Object getOutputParameterValue(int position) {
         entityManager.verifyOpen();
 
@@ -504,6 +503,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws IllegalArgumentException if the parameter name does not
      * correspond to a parameter of the query or is not an INOUT or OUT parameter
      */
+    @Override
     public Object getOutputParameterValue(String parameterName) {
         entityManager.verifyOpen();
 
@@ -688,6 +688,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * the query timeout value set and the transaction
      * is rolled back
      */
+    @Override
     public int getUpdateCount() {
         entityManager.verifyOpenWithSetRollbackOnly();
 
@@ -722,6 +723,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws PersistenceException if the query execution exceeds the query
      * timeout value set and the transaction is rolled back
      */
+    @Override
     public boolean hasMoreResults() {
         entityManager.verifyOpen();
 
@@ -768,6 +770,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @param mode parameter mode
      * @return the same query instance
      */
+    @Override
     public StoredProcedureQuery registerStoredProcedureParameter(int position, Class type, ParameterMode mode) {
         entityManager.verifyOpenWithSetRollbackOnly();
         StoredProcedureCall call = (StoredProcedureCall) getDatabaseQuery().getCall();
@@ -799,6 +802,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @param mode parameter mode
      * @return the same query instance
      */
+    @Override
     public StoredProcedureQuery registerStoredProcedureParameter(String parameterName, Class type, ParameterMode mode) {
         entityManager.verifyOpenWithSetRollbackOnly();
         StoredProcedureCall call = (StoredProcedureCall) getDatabaseQuery().getCall();
@@ -824,10 +828,11 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
     /**
      * Set the position of the first result to retrieve.
      *
-     * @param start
+     * @param startPosition
      *            position of the first result, numbered from 0
      * @return the same query instance
      */
+    @Override
     public StoredProcedureQueryImpl setFirstResult(int startPosition) {
         throw new IllegalStateException(ExceptionLocalization.buildMessage("operation_not_supported", new Object[]{"setFirstResult", "StoredProcedureQuery"}));
     }
@@ -839,6 +844,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @param flushMode flush mode
      * @return the same query instance
      */
+    @Override
     public StoredProcedureQueryImpl setFlushMode(FlushModeType flushMode) {
         return (StoredProcedureQueryImpl) super.setFlushMode(flushMode);
     }
@@ -857,6 +863,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws IllegalArgumentException if the second argument is not valid for
      * the implementation
      */
+    @Override
     public StoredProcedureQuery setHint(String hintName, Object value) {
         try {
             entityManager.verifyOpen();
@@ -875,6 +882,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws IllegalStateException
      *             if not a Java Persistence query language SELECT query
      */
+    @Override
     public StoredProcedureQueryImpl setLockMode(LockModeType lockMode) {
         return (StoredProcedureQueryImpl) super.setLockMode(lockMode);
     }
@@ -885,6 +893,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @param maxResult
      * @return the same query instance
      */
+    @Override
     public StoredProcedureQueryImpl setMaxResults(int maxResult) {
         throw new IllegalStateException(ExceptionLocalization.buildMessage("operation_not_supported", new Object[]{"setMaxResults", "StoredProcedureQuery"}));
     }
@@ -900,6 +909,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * positional parameter of the query or if the value argument is of
      * incorrect type
      */
+    @Override
     public StoredProcedureQuery setParameter(int position, Calendar value, TemporalType temporalType) {
         entityManager.verifyOpenWithSetRollbackOnly();
         return setParameter(position, convertTemporalType(value, temporalType));
@@ -916,6 +926,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * positional parameter of the query or if the value argument is of
      * incorrect type
      */
+    @Override
     public StoredProcedureQuery setParameter(int position, Date value, TemporalType temporalType) {
         entityManager.verifyOpenWithSetRollbackOnly();
         return setParameter(position, convertTemporalType(value, temporalType));
@@ -930,6 +941,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws IllegalArgumentException if position does not correspond to a
      * positional parameter of the query or if the argument is of incorrect type
      */
+    @Override
     public StoredProcedureQuery setParameter(int position, Object value) {
         try {
             entityManager.verifyOpen();
@@ -951,6 +963,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws IllegalArgumentException if the parameter does not correspond to
      * a parameter of the query
      */
+    @Override
     public StoredProcedureQuery setParameter(Parameter<Calendar> param, Calendar value, TemporalType temporalType) {
         if (param == null) {
             throw new IllegalArgumentException(ExceptionLocalization.buildMessage("NULL_PARAMETER_PASSED_TO_SET_PARAMETER"));
@@ -977,6 +990,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws IllegalArgumentException if the parameter does not correspond to
      * a parameter of the query
      */
+    @Override
     public StoredProcedureQuery setParameter(Parameter<Date> param, Date value, TemporalType temporalType) {
         if (param == null) {
             throw new IllegalArgumentException(ExceptionLocalization.buildMessage("NULL_PARAMETER_PASSED_TO_SET_PARAMETER"));
@@ -1002,6 +1016,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @throws IllegalArgumentException if the parameter does not correspond to
      * a parameter of the query
      */
+    @Override
     public <T> StoredProcedureQuery setParameter(Parameter<T> param, T value) {
         if (param == null) {
             throw new IllegalArgumentException(ExceptionLocalization.buildMessage("NULL_PARAMETER_PASSED_TO_SET_PARAMETER"));
@@ -1029,6 +1044,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * correspond to a parameter of the query or if the value argument is of
      * incorrect type
      */
+    @Override
     public StoredProcedureQuery setParameter(String name, Calendar value, TemporalType temporalType) {
         entityManager.verifyOpenWithSetRollbackOnly();
         return setParameter(name, convertTemporalType(value, temporalType));
@@ -1045,6 +1061,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * correspond to a parameter of the query or if the value argument is of
      * incorrect type
      */
+    @Override
     public StoredProcedureQuery setParameter(String name, Date value, TemporalType temporalType) {
         entityManager.verifyOpenWithSetRollbackOnly();
         return setParameter(name, convertTemporalType(value, temporalType));
@@ -1060,6 +1077,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * correspond to a parameter of the query or if the argument is of incorrect
      * type
      */
+    @Override
     public StoredProcedureQuery setParameter(String name, Object value) {
         try {
             entityManager.verifyOpen();
@@ -1081,6 +1099,7 @@ public class StoredProcedureQueryImpl extends QueryImpl implements StoredProcedu
      * @param isIndex
      *            defines if index or named
      */
+    @Override
     protected void setParameterInternal(String name, Object value, boolean isIndex) {
         Parameter parameter = this.getInternalParameters().get(name);
         StoredProcedureCall call = (StoredProcedureCall) getDatabaseQuery().getCall();

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -91,6 +91,11 @@ public abstract class AbstractPersistenceResource extends AbstractResource {
             SessionBeanCall call = unmarshallSessionBeanCall(is);
 
             String jndiName = call.getJndiName();
+            if (!isValid(jndiName)) {
+                JPARSLogger.error("jpars_invalid_jndi_name", new Object[] { jndiName });
+                throw JPARSException.jndiNamePassedIsInvalid(jndiName);
+            }
+            
             javax.naming.Context ctx = new InitialContext();
             Object ans = ctx.lookup(jndiName);
             if (ans == null) {
@@ -133,6 +138,16 @@ public abstract class AbstractPersistenceResource extends AbstractResource {
             JPARSLogger.exception("exception_in_callSessionBeanInternal", new Object[]{version, headers.getMediaType(), uriInfo.getRequestUri().toASCIIString()}, e);
             throw JPARSException.exceptionOccurred(e);
         }
+    }
+
+    private boolean isValid(String jndiName) {
+        String protocol = null;
+        int colon = jndiName.indexOf(':');
+        int slash = jndiName.indexOf('/');
+        if (colon > 0 && (slash == -1 || colon < slash)) {
+            protocol = jndiName.substring(0, colon);
+        }
+        return protocol == null || protocol.isEmpty() || protocol.equalsIgnoreCase("java") || protocol.equalsIgnoreCase("ejb");
     }
 
     private SessionBeanCall unmarshallSessionBeanCall(InputStream data) throws JAXBException {

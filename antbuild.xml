@@ -1,5 +1,5 @@
 <!--/*******************************************************************************
-* Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 1998, 2016 Oracle and/or its affiliates. All rights reserved.
 * This program and the accompanying materials are made available under the
 * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
 * which accompanies this distribution.
@@ -219,10 +219,6 @@
                                               else="${extensions.depend.dir}/${aqapi.jar}">
             <available file="${oracle.extensions.depend.dir}/${aqapi.jar}"/>
         </condition>
-        <condition property="file.sdoapi.jar" value="${oracle.extensions.depend.dir}/${sdoapi.jar}"
-                                              else="${extensions.depend.dir}/${sdoapi.jar}">
-            <available file="${oracle.extensions.depend.dir}/${sdoapi.jar}"/>
-        </condition>
         <condition property="file.xdb.jar" value="${oracle.extensions.depend.dir}/${xdb.jar}"
                                            else="${extensions.depend.dir}/${xdb.jar}">
             <available file="${oracle.extensions.depend.dir}/${xdb.jar}"/>
@@ -256,9 +252,6 @@
         <condition property="is.aqapi.jar">
             <available file="${file.aqapi.jar}"/>
         </condition>
-        <condition property="is.sdoapi.jar">
-            <available file="${file.sdoapi.jar}"/>
-        </condition>
         <condition property="is.xdb.jar">
             <available file="${file.xdb.jar}"/>
         </condition>
@@ -281,7 +274,6 @@
                 <isset property="is.orai18n.jar"/>
                 <isset property="is.orai18n-mapping.jar"/>
                 <isset property="is.aqapi.jar"/>
-                <isset property="is.sdoapi.jar"/>
                 <isset property="is.xdb.jar"/>
                 <isset property="is.xmlparser.jar"/>
                 <isset property="is.ucp.jar"/>
@@ -301,9 +293,6 @@
         </condition>
         <condition property="msg.orai18n-mapping.jar" value=" + ${file.orai18n-mapping.jar} library found" else=" - ${orai18n-mapping.jar} library missing">
             <isset property="is.orai18n-mapping.jar"/>
-        </condition>
-        <condition property="msg.sdoapi.jar"    value=" + ${file.sdoapi.jar} library found"    else=" - ${sdoapi.jar} library missing">
-            <isset property="is.sdoapi.jar"/>
         </condition>
         <condition property="msg.aqapi.jar"     value=" + ${file.aqapi.jar} library found"     else=" - ${aqapi.jar} library missing">
             <isset property="is.aqapi.jar"/>
@@ -346,7 +335,6 @@
         <echo message="${msg.orai18n.jar}"/>
         <echo message="${msg.orai18n-mapping.jar}"/>
         <echo message="${msg.aqapi.jar}"/>
-        <echo message="${msg.sdoapi.jar}"/>
         <echo message="${msg.xdb.jar}"/>
         <echo message="${msg.xmlparser.jar}"/>
         <echo message="${msg.ucp.jar}"/>
@@ -368,7 +356,6 @@
         <echo message="${msg.orai18n-mapping.jar}"/>
         <echo message="${msg.aqapi.jar}"/>
         <echo message="${msg.ojdbc.jar}"/>
-        <echo message="${msg.sdoapi.jar}"/>
         <echo message="${msg.xdb.jar}"/>
         <echo message="${msg.xmlparser.jar}"/>
         <echo message="${msg.ucp.jar}"/>
@@ -412,7 +399,7 @@
 
     <!-- Compiles Oracle components, tests and extensions (excluding utilities). -->
     <target name="build-oracle"      depends="build-oracle-test"/> <!-- added for backward compatibility -->
-    <target name="build-oracle-test" depends="build-oracle-extension-test, build-oracle-nosql-extension-test"/>
+    <target name="build-oracle-test" depends="build-oracle-extension-test, build-oracle-spatial-extension-test, build-oracle-nosql-extension-test"/>
     <!-- Compiles Oracle components, tests and extensions (excluding utilities) if dependencies are available. -->
     <target name="build-oracle-if-dependencies" depends="oracle.jdbc.dependencies" if="oracle.jdbc.dependencies.available">
         <antcall target="build-oracle-test"/>
@@ -494,6 +481,7 @@
         <java dir="${eclipselink.mvn.parent}" fork="true" failonerror="true" classname="org.codehaus.plexus.classworlds.launcher.Launcher">
              <jvmarg value="-Dclassworlds.conf=${M2_HOME}/bin/m2.conf"/>
              <jvmarg value="-Dmaven.home=${M2_HOME}"/>
+             <jvmarg value="-Dmaven.multiModuleProjectDirectory=${eclipselink.mvn.parent}"/>
              <jvmarg value="-Dlocal.compdeps=${local.compdeps}"/>
              <jvmarg value="-Declipselink.full=true"/>
              <arg value="clean"/>
@@ -515,7 +503,9 @@
 
     <target name="clean-testing" description="Clean the testing projects">
         <ant antfile="antbuild.xml" dir="${eclipselink.core.test}"           target="clean"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.extension.test}"      target="clean"/>
         <ant antfile="antbuild.xml" dir="${eclipselink.jpa.test}"            target="clean"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.hermes.test}"         target="clean"/>
         <ant antfile="antbuild.xml" dir="${eclipselink.moxy.test}"           target="clean"/>
         <ant antfile="antbuild.xml" dir="${eclipselink.sdo.test}"            target="clean"/>
         <ant antfile="build.xml"    dir="${eclipselink.util.workbench.test}" target="clean"/>
@@ -524,7 +514,7 @@
     </target>
 
     <target name="clean-oracle"      depends="clean-oracle-test"/>
-    <target name="clean-oracle-test" depends="clean-oracle-extension-test, clean-oracle-nosql-extension-test"/>
+    <target name="clean-oracle-test" depends="clean-oracle-extension-test, clean-oracle-spatial-extension-test, clean-oracle-nosql-extension-test"/>
     <!-- Compiles Oracle components, tests and extensions (excluding utilities) if dependencies are available. -->
     <target name="clean-oracle-if-dependencies" depends="oracle.dependencies" if="oracle.dependencies.available">
         <antcall target="clean-oracle-test"/>
@@ -532,6 +522,10 @@
 
     <target name="clean-oracle-extension-test">
         <ant antfile="antbuild.xml" dir="${eclipselink.extension.oracle.test}" target="clean"/>
+    </target>
+
+    <target name="clean-oracle-spatial-extension-test">
+        <ant antfile="antbuild.xml" dir="${eclipselink.extension.oracle.spatial.test}" target="clean"/>
     </target>
 
     <target name="clean-oracle-nosql-extension-test">
@@ -551,6 +545,7 @@
         <echo message="Launching Maven build with the following parameters:"/>
         <echo message="    -Dclassworlds.conf=${M2_HOME}/bin/m2.conf"/>
         <echo message="    -Dmaven.home=${M2_HOME}"/>
+        <echo message="    -Dmaven.multiModuleProjectDirectory=${eclipselink.mvn.parent}"/>
         <echo message="    -Dbuild.qualifier=${version.qualifier}"/>
         <echo message="    -DforceContextQualifier=${version.qualifier}"/>
         <echo message="    -Dlocal.compdeps=${local.compdeps}"/>
@@ -559,6 +554,7 @@
         <java dir="${eclipselink.mvn.parent}" fork="true" failonerror="true" classname="org.codehaus.plexus.classworlds.launcher.Launcher">
              <jvmarg value="-Dclassworlds.conf=${M2_HOME}/bin/m2.conf"/>
              <jvmarg value="-Dmaven.home=${M2_HOME}"/>
+             <jvmarg value="-Dmaven.multiModuleProjectDirectory=${eclipselink.mvn.parent}"/>
              <jvmarg value="-Dbuild.qualifier=${version.qualifier}"/>
              <jvmarg value="-DforceContextQualifier=${version.qualifier}"/>
              <jvmarg value="-Dlocal.compdeps=${local.compdeps}"/>
@@ -628,6 +624,7 @@
         <java dir="${eclipselink.mvn.parent}" fork="true" failonerror="true" classname="org.codehaus.plexus.classworlds.launcher.Launcher">
              <jvmarg value="-Dclassworlds.conf=${M2_HOME}/bin/m2.conf"/>
              <jvmarg value="-Dmaven.home=${M2_HOME}"/>
+             <jvmarg value="-Dmaven.multiModuleProjectDirectory=${eclipselink.mvn.parent}"/>
              <jvmarg value="-Dlocal.compdeps=${local.compdeps}"/>
              <jvmarg value="-D${oracle.target}=true"/>
              <jvmarg value="-Doracle.p2.url=${oracle.p2.url}"/>
@@ -653,6 +650,7 @@
         <echo message="Launching Maven build with the following parameters:"/>
         <echo message="    -Dclassworlds.conf=${M2_HOME}/bin/m2.conf"/>
         <echo message="    -Dmaven.home=${M2_HOME}"/>
+        <echo message="    -Dmaven.multiModuleProjectDirectory=${eclipselink.mvn.parent}"/>
         <echo message="    -Dbuild.qualifier=${version.qualifier}"/>
         <echo message="    -DforceContextQualifier=${version.qualifier}"/>
         <echo message="    -Dlocal.compdeps=${local.compdeps}"/>
@@ -662,6 +660,7 @@
         <java dir="${eclipselink.mvn.parent}" fork="true" failonerror="true" classname="org.codehaus.plexus.classworlds.launcher.Launcher">
              <jvmarg value="-Dclassworlds.conf=${M2_HOME}/bin/m2.conf"/>
              <jvmarg value="-Dmaven.home=${M2_HOME}"/>
+             <jvmarg value="-Dmaven.multiModuleProjectDirectory=${eclipselink.mvn.parent}"/>
              <jvmarg value="-Dbuild.qualifier=${version.qualifier}"/>
              <jvmarg value="-DforceContextQualifier=${version.qualifier}"/>
              <jvmarg value="-Dlocal.compdeps=${local.compdeps}"/>
@@ -689,6 +688,11 @@
         <ant antfile="antbuild.xml" dir="${eclipselink.extension.oracle.test}" target="build"/>
     </target>
 
+    <target name="build-oracle-spatial-extension-test" depends="check-oracle-dependencies">
+        <ant antfile="antbuild.xml" dir="${eclipselink.core.test}"             target="build"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.extension.oracle.spatial.test}" target="build"/>
+    </target>
+
     <target name="build-oracle-nosql-extension-test" depends="check-oracle-dependencies">
         <ant antfile="antbuild.xml" dir="${eclipselink.core.test}"                   target="build"/>
         <ant antfile="antbuild.xml" dir="${eclipselink.extension.oracle.nosql.test}" target="build"/>
@@ -696,14 +700,16 @@
 
     <!-- Compiles tests (excluding workbench, dbws-util and Oracle extensions). -->
     <target name="build-core-test">
-        <ant antfile="antbuild.xml" dir="${eclipselink.core.test}"    target="build"/>
-        <ant antfile="antbuild.xml" dir="${eclipselink.jpa.test}"     target="build"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.core.test}"      target="build"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.extension.test}" target="build"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.jpa.test}"       target="build"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.hermes.test}"    target="build"/>
         <!-- ant antfile="${eclipselink.jpa.test}/antbuild.xml"                    target="all"/ -->
-        <ant antfile="antbuild.xml" dir="${eclipselink.jpa.wdf.test}" target="build-against-jar"/>
-        <ant antfile="antbuild.xml" dir="${eclipselink.jpars.test}"   target="build"/>
-        <ant antfile="antbuild.xml" dir="${eclipselink.moxy.test}"    target="compile-tests-against-jar"/>
-        <ant antfile="antbuild.xml" dir="${eclipselink.sdo.test}"     target="compile-sdo-tests-against-jar"/>
-        <ant antfile="antbuild.xml" dir="${eclipselink.dbws.test}"    target="build"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.jpa.wdf.test}"   target="build-against-jar"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.jpars.test}"     target="build"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.moxy.test}"      target="compile-tests-against-jar"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.sdo.test}"       target="compile-sdo-tests-against-jar"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.dbws.test}"      target="build"/>
     </target>
 
     <target name="build-nosql-test">
@@ -1049,6 +1055,7 @@
                 <include name="buildsystem/*custom*jar"/>
                 <include name="${eclipselink.core.test}/**"/>
                 <include name="${eclipselink.core.base}/eclipselink.extension.oracle.test/**"/>
+                <include name="${eclipselink.core.base}/eclipselink.extension.oracle.spatial.test/**"/>
                 <include name="${eclipselink.core.base}/eclipselink.extension.nosql.test/**"/>
                 <include name="${eclipselink.core.base}/eclipselink.extension.oracle.nosql.test/**"/>
                 <include name="${eclipselink.jpa.test}/**"/>
@@ -1056,7 +1063,6 @@
                 <include name="${eclipselink.sdo.test}/**"/>
                 <include name="${eclipselink.sdo.base}/eclipselink.sdo.test.server/**"/>
                 <include name="plugins/eclipselink-jpa-modelgen_*.jar"/>
-                <include name="jpa/eclipselink.jpa.modelgen.test/**"/>
                 <include name="plugins/javax.validation_*.jar"/>
                 <include name="jpa/plugins/javax.persistence_2.*.jar"/>
                 <include name="sdo/plugins/commonj.sdo_*.jar"/>
@@ -1537,7 +1543,7 @@
             depends="clear-db, test-core-srg, test-jpa22-srg, test-jpars, test-moxy-srg, test-sdo-srg, test-dbws-srg, test-dbws-builder-srg, generate-report"
             />
     <target name="test-lrg-only" description="run all the LRG test suites"
-            depends="test-core, test-jpa22, test-jpa-jse, test-wdf, test-jpars, test-moxy, test-sdo, test-dbws, test-dbws-builder, test-osgi"
+            depends="test-core, test-ext, test-jpa22, test-jpa-jse, test-jpql, test-wdf, test-jpars, test-moxy, test-sdo, test-dbws, test-dbws-builder, test-osgi"
             />
     <target name="test-lrg" description="run all the LRG test suites"
             depends="clear-db, test-lrg-only, generate-report"
@@ -1553,6 +1559,10 @@
      <target name="test-browser" description="run the core testing browser">
         <ant antfile="antbuild.xml" dir="${eclipselink.core.test}" target="test-browser"/>
     </target>
+    <!-- Run core extension suite. -->
+    <target name="test-ext" description="run the core extension tests">
+        <ant antfile="antbuild.xml" dir="${eclipselink.extension.test}" target="test"/>
+    </target>
     <!-- Run core SRG. -->
     <target name="test-core-srg" description="run the core srg tests">
         <ant antfile="antbuild.xml" dir="${eclipselink.core.test}" target="test-srg"/>
@@ -1562,6 +1572,10 @@
         <ant antfile="antbuild.xml" dir="${eclipselink.extension.oracle.test}"        target="test-oracle"/>
         <!-- ant antfile="antbuild.xml" dir="${eclipselink.dbws.test.oracle}"         target="test-oracle"/ -->
         <!-- ant antfile="antbuild.xml" dir="${eclipselink.dbws.builder.test.oracle}" target="test-oracle"/ -->
+    </target>
+    <!-- Run Oracle Spatial Tests -->
+    <target name="test-oracle-spatial" description="run all oracle specific spatial tests">
+        <ant antfile="antbuild.xml" dir="${eclipselink.extension.oracle.spatial.test}"        target="test-oracle-spatial"/>
     </target>
     <!-- Run nosql Tests -->
     <target name="test-nosql" description="run all nosql specific tests">
@@ -1591,6 +1605,10 @@
     </target>
     <target name="test-jpa22-srg" description="run the jpa srg tests">
         <ant antfile="antbuild.xml" dir="${eclipselink.jpa.test}" target="test-srg22"/>
+    </target>
+    <!-- Run JPQL suite. -->
+    <target name="test-jpql" description="run the JPQL tests">
+        <ant antfile="antbuild.xml" dir="${eclipselink.hermes.test}" target="test"/>
     </target>
     <!-- Run WDF suite -->
     <target name="build-wdf" description="build the WDF jpa tests">

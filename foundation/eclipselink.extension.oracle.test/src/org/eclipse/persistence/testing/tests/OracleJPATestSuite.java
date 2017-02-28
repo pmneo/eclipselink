@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -18,9 +18,7 @@ import junit.framework.Test;
 
 import org.eclipse.persistence.testing.tests.jpa.customfeatures.CustomFeaturesJUnitTestSuite;
 import org.eclipse.persistence.testing.tests.jpa.dcn.DCNTestSuite;
-import org.eclipse.persistence.testing.tests.jpa.jgeometry.SpatialJPQLTestSuite;
 import org.eclipse.persistence.testing.tests.jpa.proxyauthentication.ProxyAuthenticationTestSuite;
-import org.eclipse.persistence.testing.tests.jpa.structconverter.StructConverterTestSuite;
 import org.eclipse.persistence.testing.tests.jpa.timestamptz.TimeStampTZJUnitTestSuite;
 
 public class OracleJPATestSuite extends TestSuite{
@@ -29,8 +27,6 @@ public class OracleJPATestSuite extends TestSuite{
         TestSuite fullSuite = new TestSuite();
         fullSuite.setName("OracleJPATestSuite");
 
-        fullSuite.addTest(StructConverterTestSuite.suite());
-        fullSuite.addTest(SpatialJPQLTestSuite.suite());
         fullSuite.addTest(ProxyAuthenticationTestSuite.suite());
         fullSuite.addTest(CustomFeaturesJUnitTestSuite.suite());
         fullSuite.addTest(TimeStampTZJUnitTestSuite.suite());

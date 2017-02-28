@@ -66,6 +66,7 @@
 
     <!-- Allows a user to overide certain user specific properties. -->
     <property file="${user.home}/build.properties"/>
+    <property file="${test.properties}"/>
     <property file="${user.home}/test.properties"/>
     <property file="${oracle_test.build.location}/antbuild.properties"/>
     <property file="${oracle_test.build.location}/${test.properties}"/>
@@ -139,17 +140,9 @@
                                        else="${extensions.depend.dir}/${oracle.xdb.jar}">
             <available file="${oracle.extensions.depend.dir}/${oracle.xdb.jar}"/>
         </condition>
-        <condition property="oracle.ojdbc.lib" value="${oracle.extensions.depend.dir}/${oracle.ojdbc.jar}"
-                                         else="${extensions.depend.dir}/${oracle.ojdbc.jar}">
-            <available file="${oracle.extensions.depend.dir}/${oracle.ojdbc.jar}"/>
-        </condition>
         <condition property="oracle.aqapi.lib" value="${oracle.extensions.depend.dir}/${oracle.aqapi.jar}"
                                          else="${extensions.depend.dir}/${oracle.aqapi.jar}">
             <available file="${oracle.extensions.depend.dir}/${oracle.aqapi.jar}"/>
-        </condition>
-        <condition property="oracle.sdoapi.lib" value="${oracle.extensions.depend.dir}/${oracle.sdoapi.jar}"
-                                          else="${extensions.depend.dir}/${oracle.sdoapi.jar}">
-            <available file="${oracle.extensions.depend.dir}/${oracle.sdoapi.jar}"/>
         </condition>
         <condition property="oracle.xmlparser.lib" value="${oracle.extensions.depend.dir}/${oracle.xmlparser.jar}"
                                              else="${extensions.depend.dir}/${oracle.xmlparser.jar}">
@@ -198,9 +191,7 @@
         <available file="${extensions.depend.dir}"        type="dir" property="ext.depend.dir.exist"/>
             <!-- Now retest using the regular extensions dir, if already found variables will not be reset   -->
         <available file="${oracle.xdb.lib}"       property="oracle.xdb.lib.exist"/>
-        <available file="${oracle.ojdbc.lib}"     property="oracle.ojdbc.lib.exist"/>
         <available file="${oracle.aqapi.lib}"     property="oracle.aqapi.lib.exist"/>
-        <available file="${oracle.sdoapi.lib}"    property="oracle.sdoapi.lib.exist"/>
         <available file="${oracle.xmlparser.lib}" property="oracle.xmlparser.lib.exist"/>
         <available file="${oracle.ucp.lib}"       property="oracle.ucp.lib.exist"/>
 
@@ -245,9 +236,8 @@
                 <isset property="jpatest.framework.exist"/>
                 <isset property="junit.lib.exist"/>
                 <isset property="oracle.xdb.lib.exist"/>
-                <isset property="oracle.ojdbc.lib.exist"/>
+                <isset property="jdbc.jar.exist"/>
                 <isset property="oracle.aqapi.lib.exist"/>
-                <isset property="oracle.sdoapi.lib.exist"/>
                 <isset property="oracle.xmlparser.lib.exist"/>
                 <isset property="oracle.ucp.lib.exist"/>
             </and>
@@ -290,10 +280,9 @@
     </target>
     <target name="init_dependency" if="dependency.ok" depends="announce_missing_dependencies">
         <path id="oracle_test.oracle.dependency.path">
+            <pathelement path="${jdbc.driver.jar}"/>
             <pathelement path="${oracle.xdb.lib}"/>
-            <pathelement path="${oracle.ojdbc.lib}"/>
             <pathelement path="${oracle.aqapi.lib}"/>
-            <pathelement path="${oracle.sdoapi.lib}"/>
             <pathelement path="${oracle.xmlparser.lib}"/>
             <pathelement path="${oracle.orai18n.lib}"/>
             <pathelement path="${oracle.orai18n-mapping.lib}"/>
@@ -309,7 +298,7 @@
             <pathelement path="${junit.lib}"/>
         </path>
         <path id="oracle_test.public.dependency.path">
-            <pathelement path="${oracle_test.2.jpa.plugins.dir}/${persistence20.jar}"/>
+            <pathelement path="${oracle_test.2.jpa.plugins.dir}/${persistence21.jar}"/>
             <fileset dir="${oracle_test.2.common.plugins.dir}" includes="${eclipselink.core.depend}"/>
         </path>
     </target>
@@ -345,10 +334,9 @@
         <echo message="The test framework is currently part of the core.test and jpa.test projects. Be sure they are built."/>
         <echo message="    oracle dependency location: '${oracle.extensions.depend.dir}' :: found='${oracle.depend.dir.exist}'"/>
         <echo message="    dependency location:        '${extensions.depend.dir}' :: found='${ext.depend.dir.exist}'"/>
+        <echo message="        '${jdbc.driver.jar}'        :: found='${jdbc.jar.exist}'"/>
         <echo message="        '${oracle.xdb.lib}'         :: found='${oracle.xdb.lib.exist}'"/>
-        <echo message="        '${oracle.ojdbc.lib}'       :: found='${oracle.ojdbc.lib.exist}'"/>
         <echo message="        '${oracle.aqapi.lib}'       :: found='${oracle.aqapi.lib.exist}'"/>
-        <echo message="        '${oracle.sdoapi.lib}'      :: found='${oracle.sdoapi.lib.exist}'"/>
         <echo message="        '${oracle.xmlparser.lib}'   :: found='${oracle.xmlparser.lib.exist}'"/>
         <echo message="        '${oracle.ucp.lib}' :: found='${oracle.ucp.lib.exist}'"/>
         <echo message="Please put your Oracle dependencies in one of the two 'dependency' locations (default or custom defined)."/>
@@ -358,10 +346,9 @@
     <!-- Compiles all tests. -->
     <target name="compile" depends="init_paths" description="compile EclipseLink Oracle tests">
         <echo message="Using the following oracle dependencies:"/>
+        <echo message="    '${jdbc.driver.jar}'"/>
         <echo message="    '${oracle.xdb.lib}'"/>
-        <echo message="    '${oracle.ojdbc.lib}'"/>
         <echo message="    '${oracle.aqapi.lib}'"/>
-        <echo message="    '${oracle.sdoapi.lib}'"/>
         <echo message="    '${oracle.xmlparser.lib}'"/>
         <echo message="    '${oracle.orai18n.lib}'"/>
         <echo message="    '${oracle.orai18n-mapping.lib}'"/>
@@ -387,12 +374,6 @@
     </target>
 
     <target name="package">
-        <!-- Package the structconverter JPA model jar. -->
-        <jar jarfile="eclipselink-struct-converter-model.jar">
-            <zipfileset dir="resource/structconverter" includes="*.xml" prefix="META-INF"/>
-            <fileset dir="${oracle_test.classes.dir}"
-                     includes="org/eclipse/persistence/testing/models/jpa/**"/>
-        </jar>
         <!-- Package the customfeatures JPA model jar. -->
         <jar jarfile="eclipselink-customfeatures-model.jar">
             <zipfileset dir="resource/customfeatures" includes="*.xml" prefix="META-INF"/>
@@ -447,18 +428,6 @@
 
     <!-- Runs Core Oracle-specific tests. -->
     <target name="test-oracle" depends="init_run">
-        <echo message="Creating MY_GEOMETRY datatype for spatial tests: ${db.url}..."/>
-        <sql driver="${db.driver}"
-            url="${db.url}"
-            userid="${db.user}"
-            password="${db.pwd}"
-            onerror="continue"
-            >
-            <classpath>
-                <pathelement location="${jdbc.driver.jar}"/>
-            </classpath>
-CREATE OR REPLACE TYPE MY_GEOMETRY AS OBJECT (id NUMBER, geom MDSYS.SDO_GEOMETRY);
-        </sql>
         <run_test testclass="org.eclipse.persistence.testing.tests.OracleTestModel"  dburl="${db.url}"/>
         <run_test testclass="org.eclipse.persistence.testing.tests.xdb.XDBTestModel" dburl="${db.oci.url}"/>
         <run_test testclass="org.eclipse.persistence.testing.tests.xdb.XDBTestModelMWIntegration" dburl="${db.oci.url}"/>
@@ -504,17 +473,20 @@ CREATE OR REPLACE TYPE MY_GEOMETRY AS OBJECT (id NUMBER, geom MDSYS.SDO_GEOMETRY
         <attribute name="testclass"/>
         <attribute name="dburl"/>
         <sequential>
+            <pathconvert property="oracle_test.run.path.msg" refid="oracle_test.run.path"/>
             <echo>Running test on @{dburl}</echo>
+            <echo>ClassPath: ${oracle_test.run.path.msg}</echo>
             <!-- Can be set e.g. in test.properties to add VM options for a particular platform/driver  -->
             <property name="additional.jvmargs" value="-Ddummy2=dummy"/>
             <junit printsummary="yes" failureproperty="junit.failed" fork="yes" forkmode="once" showoutput="true" maxmemory="512m" dir="${run.dir}">
-                <jvmarg line="${additional.jvmargs}"/>
+                <!--<jvmarg line="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=4000"/>-->
                 <jvmarg value="-Declipselink.logging.level=${logging.level}"/>
                 <jvmarg value="-Ddb.driver=${db.driver}"/>
                 <jvmarg value="-Ddb.url=@{dburl}"/>
                 <jvmarg value="-Ddb.user=${db.user}"/>
                 <jvmarg value="-Ddb.pwd=${db.pwd}"/>
                 <jvmarg value="-Ddb.platform=${db.platform}"/>
+                <jvmarg value="-Djava.library.path=${java.library.path}"/>
                 <jvmarg value="-Djava.security.manager"/>
                 <jvmarg value="-Djava.security.policy=./java.policy.allpermissions"/>
                 <classpath>
@@ -543,7 +515,9 @@ CREATE OR REPLACE TYPE MY_GEOMETRY AS OBJECT (id NUMBER, geom MDSYS.SDO_GEOMETRY
         <attribute name="testclass"/>
         <attribute name="dburl"/>
         <sequential>
+            <pathconvert property="oracle_test.run.path.msg" refid="oracle_test.run.path"/>
             <echo>Running test on @{dburl}</echo>
+            <echo>ClassPath: ${oracle_test.run.path.msg}</echo>
             <!-- Can be set e.g. in test.properties to add VM options for a particular platform/driver  -->
             <property name="additional.jvmargs" value="-Ddummy2=dummy"/>
             <java classname="org.eclipse.persistence.testing.framework.PromptTestRunner"
@@ -558,6 +532,7 @@ CREATE OR REPLACE TYPE MY_GEOMETRY AS OBJECT (id NUMBER, geom MDSYS.SDO_GEOMETRY
                 <jvmarg value="-Ddb.user=${db.user}"/>
                 <jvmarg value="-Ddb.pwd=${db.pwd}"/>
                 <jvmarg value="-Ddb.platform=${db.platform}"/>
+                <jvmarg value="-Djava.library.path=${java.library.path}"/>
                 <jvmarg value="${test.security-manager}"/>
                 <jvmarg value="${test.security-manager.policy}"/>
                 <arg value="pfile=../test.properties" />

@@ -82,6 +82,8 @@ import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -180,7 +182,8 @@ public class JAXBContext extends javax.xml.bind.JAXBContext {
     private boolean initializedXMLInputFactory = false;
     private JAXBMarshaller jsonSchemaMarshaller;
 
-    private BeanValidationHelper beanValidationHelper;
+    private static volatile BeanValidationHelper beanValidationHelper;
+    private static volatile Boolean beanValidationPresent;
 
     protected JAXBContext() {
         super();
@@ -225,9 +228,16 @@ public class JAXBContext extends javax.xml.bind.JAXBContext {
      * Initializes bean validation if javax.validation.api bundle is on the class path.
      */
     private void initBeanValidation() {
-        // Bean validation is optional
-        if (BeanValidationChecker.isBeanValidationPresent()) {
-            beanValidationHelper = new BeanValidationHelper();
+        if (beanValidationPresent == null) {
+            beanValidationPresent = BeanValidationChecker.isBeanValidationPresent();
+        }
+        if (beanValidationPresent && beanValidationHelper == null) {
+            synchronized (JAXBContext.class) {
+                if (beanValidationHelper == null) {
+                    // Bean validation is optional
+                    beanValidationHelper = new BeanValidationHelper();
+                }
+            }
         }
     }
 
@@ -913,7 +923,14 @@ public class JAXBContext extends javax.xml.bind.JAXBContext {
          * the binding layer for a Web Service provider.
          */
         private JAXBContextState createContextState(Class[] classesToBeBound, Map<String, XmlBindings> xmlBindings) throws javax.xml.bind.JAXBException {
-            JaxbClassLoader loader = new JaxbClassLoader(classLoader, classesToBeBound);
+            JaxbClassLoader loader = PrivilegedAccessHelper.shouldUsePrivilegedAccess()
+                    ? AccessController.doPrivileged(new PrivilegedAction<JaxbClassLoader>() {
+                        @Override
+                        public JaxbClassLoader run() {
+                            return new JaxbClassLoader(classLoader, classesToBeBound);
+                        }
+                    })
+                    : new JaxbClassLoader(classLoader, classesToBeBound);
             String defaultTargetNamespace = null;
             AnnotationHelper annotationHelper = null;
             boolean enableXmlAccessorFactory = false;
@@ -1102,7 +1119,15 @@ public class JAXBContext extends javax.xml.bind.JAXBContext {
                 typesToBeBound = getXmlBindingsClasses(entry.getValue(), classLoader, typesToBeBound);
             }
 
-            JaxbClassLoader loader = new JaxbClassLoader(classLoader, typesToBeBound);
+            final TypeMappingInfo[] types = typesToBeBound;
+
+            JaxbClassLoader loader = PrivilegedAccessHelper.shouldUsePrivilegedAccess()
+                    ? AccessController.doPrivileged(new PrivilegedAction<JaxbClassLoader>() {
+                        public JaxbClassLoader run() {
+                            return new JaxbClassLoader(classLoader, types);
+                        }
+                    })
+                    : new JaxbClassLoader(classLoader, types);
 
             JavaModelImpl jModel;
             if (annotationHelper != null) {

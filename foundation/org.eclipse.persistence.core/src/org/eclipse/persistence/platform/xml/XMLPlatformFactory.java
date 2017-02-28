@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -9,6 +9,8 @@
  *
  * Contributors:
  *     Oracle - initial API and implementation from Oracle TopLink
+ *     08/29/2016 Jody Grassel
+ *       - 500441: Eclipselink core has System.getProperty() calls that are not potentially executed under doPriv()
  ******************************************************************************/
 package org.eclipse.persistence.platform.xml;
 
@@ -54,7 +56,7 @@ public class XMLPlatformFactory {
             return xmlPlatformClass;
         }
 
-        String newXMLPlatformClassName = System.getProperty(XML_PLATFORM_PROPERTY);
+        String newXMLPlatformClassName = PrivilegedAccessHelper.getSystemProperty(XML_PLATFORM_PROPERTY);
         if (null == newXMLPlatformClassName) {
             newXMLPlatformClassName = JAXP_PLATFORM_CLASS_NAME;
         }

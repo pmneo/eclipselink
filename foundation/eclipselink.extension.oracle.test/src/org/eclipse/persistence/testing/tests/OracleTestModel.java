@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -12,9 +12,13 @@
  ******************************************************************************/
 package org.eclipse.persistence.testing.tests;
 
-import java.util.*;
 import org.eclipse.persistence.internal.helper.Helper;
-import org.eclipse.persistence.testing.framework.*;
+import org.eclipse.persistence.testing.framework.TestModel;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public class OracleTestModel extends TestModel {
     protected List testList;
@@ -39,8 +43,6 @@ public class OracleTestModel extends TestModel {
         tests.add("org.eclipse.persistence.testing.tests.nchar.NcharTestModel");
         tests.add("org.eclipse.persistence.testing.tests.queries.oracle.OracleSpecificTestModel");
         tests.add("org.eclipse.persistence.testing.tests.proxyauthentication.thin.ProxyAuthenticationCustomizerTestModel");
-        tests.add("org.eclipse.persistence.testing.tests.spatial.jgeometry.SimpleJGeometryTestModel");
-        tests.add("org.eclipse.persistence.testing.tests.spatial.jgeometry.wrapped.WrappedJGeometryTestModel");
         tests.add("org.eclipse.persistence.testing.tests.types.OracleTIMESTAMPTypeTestModelWithAccessors");
         tests.add("org.eclipse.persistence.testing.tests.types.OracleTIMESTAMPTypeTestModelWithOutAccessors");
         tests.add("org.eclipse.persistence.testing.tests.unwrappedconnection.UnwrapConnectionNchartTestModel");

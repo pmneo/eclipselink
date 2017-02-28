@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -9,7 +9,8 @@
  *
  * Contributors:
  *     Gordon Yorke - Initial development
- *
+ *     02/03/2017 - Dalia Abo Sheasha
+ *       - 509693 : EclipseLink generates inconsistent SQL statements for SubQuery
  ******************************************************************************/
 
 package org.eclipse.persistence.internal.jpa.querydef;
@@ -332,9 +333,9 @@ public class SubQueryImpl<T> extends AbstractQueryImpl<T> implements Subquery<T>
      * @return subquery join
      */
     @Override
-    public <X, Y> SetJoin<X, Y> correlate(SetJoin<X, Y> parentCollection){
-        this.correlatedJoins.add(parentCollection);
-        return new SetJoinImpl(parentCollection.getParentPath(), metamodel.managedType(parentCollection.getModel().getBindableJavaType()), metamodel, parentCollection.getJavaType(), ((InternalSelection)parentCollection).getCurrentNode(), parentCollection.getModel(), parentCollection.getJoinType(), (FromImpl) parentCollection);
+    public <X, Y> SetJoin<X, Y> correlate(SetJoin<X, Y> parentSet){
+        this.correlatedJoins.add(parentSet);
+        return new SetJoinImpl(parentSet.getParentPath(), metamodel.managedType(parentSet.getModel().getBindableJavaType()), metamodel, parentSet.getJavaType(), ((InternalSelection)parentSet).getCurrentNode(), parentSet.getModel(), parentSet.getJoinType(), (FromImpl) parentSet);
     }
 
 
@@ -348,9 +349,9 @@ public class SubQueryImpl<T> extends AbstractQueryImpl<T> implements Subquery<T>
      * @return subquery join
      */
     @Override
-    public <X, Y> ListJoin<X, Y> correlate(ListJoin<X, Y> parentCollection){
-        this.correlatedJoins.add(parentCollection);
-        return new ListJoinImpl(parentCollection.getParentPath(), metamodel.managedType(parentCollection.getModel().getBindableJavaType()), metamodel, parentCollection.getJavaType(), internalCorrelate((FromImpl) parentCollection), parentCollection.getModel(), parentCollection.getJoinType(), (FromImpl) parentCollection);
+    public <X, Y> ListJoin<X, Y> correlate(ListJoin<X, Y> parentList){
+        this.correlatedJoins.add(parentList);
+        return new ListJoinImpl(parentList.getParentPath(), metamodel.managedType(parentList.getModel().getBindableJavaType()), metamodel, parentList.getJavaType(), internalCorrelate((FromImpl) parentList), parentList.getModel(), parentList.getJoinType(), (FromImpl) parentList);
     }
 
     /**
@@ -363,9 +364,9 @@ public class SubQueryImpl<T> extends AbstractQueryImpl<T> implements Subquery<T>
      * @return subquery join
      */
     @Override
-    public <X, K, V> MapJoin<X, K, V> correlate(MapJoin<X, K, V> parentCollection){
-        this.correlatedJoins.add(parentCollection);
-        return new MapJoinImpl(parentCollection.getParentPath(), metamodel.managedType(parentCollection.getModel().getBindableJavaType()), metamodel, parentCollection.getJavaType(), internalCorrelate((FromImpl) parentCollection), parentCollection.getModel(), parentCollection.getJoinType(), (FromImpl) parentCollection);
+    public <X, K, V> MapJoin<X, K, V> correlate(MapJoin<X, K, V> parentMap){
+        this.correlatedJoins.add(parentMap);
+        return new MapJoinImpl(parentMap.getParentPath(), metamodel.managedType(parentMap.getModel().getBindableJavaType()), metamodel, parentMap.getJavaType(), internalCorrelate((FromImpl) parentMap), parentMap.getModel(), parentMap.getJoinType(), (FromImpl) parentMap);
     }
 
     protected org.eclipse.persistence.expressions.Expression internalCorrelate(FromImpl from){
@@ -624,6 +625,12 @@ public class SubQueryImpl<T> extends AbstractQueryImpl<T> implements Subquery<T>
             this.subQuery.setExpressionBuilder(root.getCurrentNode().getBuilder());
             this.queryType = root.getJavaType();
             this.currentNode.setBaseExpression(((CommonAbstractCriteriaImpl)this.parent).getBaseExpression());
+        }
+        // If the parent of this SubQuery is a CriteriaQuery and the CriteriaQuery has multiple roots, 
+        // assign the baseExpression based on the SubQuery's roots - Bug 509693
+        if (!this.roots.contains(root) && this.parent instanceof CriteriaQueryImpl && 
+                ((CriteriaQueryImpl) this.parent).getRoots().size() > 1) {
+                this.currentNode.setBaseExpression(((CriteriaQueryImpl) this.parent).getBaseExpression(root));
         }
         super.integrateRoot(root);
     }

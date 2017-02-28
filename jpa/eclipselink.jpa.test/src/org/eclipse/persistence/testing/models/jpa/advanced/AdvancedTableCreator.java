@@ -112,6 +112,12 @@ public class AdvancedTableCreator extends TogglingFastTableCreator {
         addTableDefinition(buildEventTable());
         addTableDefinition(buildCMP3_TODOLISTTable());
         addTableDefinition(buildCMP3_TODOLISTITEMTable());
+        addTableDefinition(buildBILLTable());
+        addTableDefinition(buildBILL_LINETable());
+        addTableDefinition(buildBILL_LINEITEMTable());
+        addTableDefinition(buildBILL_ACTIONTable());
+        addTableDefinition(buildORD_ENTITYATable());
+        addTableDefinition(buildORD_ENTITYZTable());
     }
 
     public TableDefinition buildADDRESSTable() {
@@ -3093,6 +3099,256 @@ public class AdvancedTableCreator extends TogglingFastTableCreator {
         fk_TODOLISTITEM_TODOLIST.addSourceField("TODOLIST_ID");
         fk_TODOLISTITEM_TODOLIST.addTargetField("ID");
         table.addForeignKeyConstraint(fk_TODOLISTITEM_TODOLIST);
+        
+        return table;
+    }
+    
+    public TableDefinition buildBILLTable() {
+        TableDefinition table = new TableDefinition();
+        table.setName("JPA_BILL");
+        
+        FieldDefinition fieldID = new FieldDefinition();
+        fieldID.setName("ID");
+        fieldID.setTypeName("NUMBER");
+        fieldID.setSize(19);
+        fieldID.setIsPrimaryKey(true);
+        fieldID.setIsIdentity(false);
+        fieldID.setUnique(false);
+        fieldID.setShouldAllowNull(false);
+        table.addField(fieldID);
+        
+        FieldDefinition fieldORDERIDENTIFIER = new FieldDefinition();
+        fieldORDERIDENTIFIER.setName("ORDERIDENTIFIER");
+        fieldORDERIDENTIFIER.setTypeName("VARCHAR");
+        fieldORDERIDENTIFIER.setSize(64);
+        fieldORDERIDENTIFIER.setShouldAllowNull(true);
+        fieldORDERIDENTIFIER.setIsPrimaryKey(false);
+        fieldORDERIDENTIFIER.setUnique(false);
+        fieldORDERIDENTIFIER.setIsIdentity(false);
+        table.addField(fieldORDERIDENTIFIER);
+        
+        FieldDefinition fieldSTATUS = new FieldDefinition();
+        fieldSTATUS.setName("STATUS");
+        fieldSTATUS.setTypeName("VARCHAR");
+        fieldSTATUS.setSize(64);
+        fieldSTATUS.setShouldAllowNull(true);
+        fieldSTATUS.setIsPrimaryKey(false);
+        fieldSTATUS.setUnique(false);
+        fieldSTATUS.setIsIdentity(false);
+        table.addField(fieldSTATUS);
+        
+        return table;
+    }
+    
+    public TableDefinition buildBILL_LINETable() {
+        TableDefinition table = new TableDefinition();
+        table.setName("JPA_BILL_LINE");
+        
+        FieldDefinition fieldID = new FieldDefinition();
+        fieldID.setName("ID");
+        fieldID.setTypeName("NUMBER");
+        fieldID.setSize(19);
+        fieldID.setIsPrimaryKey(true);
+        fieldID.setIsIdentity(false);
+        fieldID.setUnique(false);
+        fieldID.setShouldAllowNull(false);
+        table.addField(fieldID);
+        
+        FieldDefinition fieldQUANTITY = new FieldDefinition();
+        fieldQUANTITY.setName("QUANTITY");
+        fieldQUANTITY.setTypeName("NUMBER");
+        fieldQUANTITY.setSize(19);
+        fieldQUANTITY.setIsPrimaryKey(false);
+        fieldQUANTITY.setIsIdentity(false);
+        fieldQUANTITY.setUnique(false);
+        fieldQUANTITY.setShouldAllowNull(false);
+        table.addField(fieldQUANTITY);
+        
+        FieldDefinition fieldBILLID = new FieldDefinition();
+        fieldBILLID.setName("BILL_ID");
+        fieldBILLID.setTypeName("NUMBER");
+        fieldBILLID.setSize(19);
+        fieldBILLID.setIsPrimaryKey(false);
+        fieldBILLID.setIsIdentity(false);
+        fieldBILLID.setUnique(false);
+        fieldBILLID.setShouldAllowNull(false);
+        table.addField(fieldBILLID);
+        
+        ForeignKeyConstraint fk_JPA_BILL_LINE_BILL_ID = new ForeignKeyConstraint();
+        fk_JPA_BILL_LINE_BILL_ID.setName("FK_JPA_BILL_LINE_BILL_ID");
+        fk_JPA_BILL_LINE_BILL_ID.setTargetTable("JPA_BILL");
+        fk_JPA_BILL_LINE_BILL_ID.addSourceField("BILL_ID");
+        fk_JPA_BILL_LINE_BILL_ID.addTargetField("ID");
+        table.addForeignKeyConstraint(fk_JPA_BILL_LINE_BILL_ID);
+        
+        return table;
+    }
+    
+    public TableDefinition buildBILL_LINEITEMTable() {
+        TableDefinition table = new TableDefinition();
+        table.setName("JPA_BILL_LINEITEM");
+        
+        FieldDefinition fieldID = new FieldDefinition();
+        fieldID.setName("ID");
+        fieldID.setTypeName("NUMBER");
+        fieldID.setSize(19);
+        fieldID.setIsPrimaryKey(true);
+        fieldID.setIsIdentity(false);
+        fieldID.setUnique(false);
+        fieldID.setShouldAllowNull(false);
+        table.addField(fieldID);
+        
+        FieldDefinition fieldITEMNAME = new FieldDefinition();
+        fieldITEMNAME.setName("ITEMNAME");
+        fieldITEMNAME.setTypeName("VARCHAR");
+        fieldITEMNAME.setSize(255);
+        fieldITEMNAME.setIsPrimaryKey(false);
+        fieldITEMNAME.setIsIdentity(false);
+        fieldITEMNAME.setUnique(false);
+        fieldITEMNAME.setShouldAllowNull(false);
+        table.addField(fieldITEMNAME);
+        
+        FieldDefinition fieldBILLLINE_ID = new FieldDefinition();
+        fieldBILLLINE_ID.setName("BILLLINE_ID");
+        fieldBILLLINE_ID.setTypeName("NUMBER");
+        fieldBILLLINE_ID.setSize(19);
+        fieldBILLLINE_ID.setIsPrimaryKey(false);
+        fieldBILLLINE_ID.setIsIdentity(false);
+        fieldBILLLINE_ID.setUnique(false);
+        fieldBILLLINE_ID.setShouldAllowNull(false);
+        table.addField(fieldBILLLINE_ID);
+        
+        ForeignKeyConstraint fk_JPA_BILL_LINE_ITEM_BILL_LINE_ID = new ForeignKeyConstraint();
+        fk_JPA_BILL_LINE_ITEM_BILL_LINE_ID.setName("JPA_BILL_LINEITEM_BILLLINE_ID");
+        fk_JPA_BILL_LINE_ITEM_BILL_LINE_ID.setTargetTable("JPA_BILL_LINE");
+        fk_JPA_BILL_LINE_ITEM_BILL_LINE_ID.addSourceField("BILLLINE_ID");
+        fk_JPA_BILL_LINE_ITEM_BILL_LINE_ID.addTargetField("ID");
+        table.addForeignKeyConstraint(fk_JPA_BILL_LINE_ITEM_BILL_LINE_ID);
+        
+        return table;
+    }
+    
+    public TableDefinition buildBILL_ACTIONTable() {
+        TableDefinition table = new TableDefinition();
+        table.setName("JPA_BILL_ACTION");
+        
+        FieldDefinition fieldID = new FieldDefinition();
+        fieldID.setName("ID");
+        fieldID.setTypeName("NUMBER");
+        fieldID.setSize(19);
+        fieldID.setIsPrimaryKey(true);
+        fieldID.setIsIdentity(false);
+        fieldID.setUnique(false);
+        fieldID.setShouldAllowNull(false);
+        table.addField(fieldID);
+        
+        FieldDefinition fieldPRIORITY = new FieldDefinition();
+        fieldPRIORITY.setName("PRIORITY");
+        fieldPRIORITY.setTypeName("NUMBER");
+        fieldPRIORITY.setSize(3);
+        fieldPRIORITY.setIsPrimaryKey(false);
+        fieldPRIORITY.setIsIdentity(false);
+        fieldPRIORITY.setUnique(false);
+        fieldPRIORITY.setShouldAllowNull(false);
+        table.addField(fieldPRIORITY);
+        
+        FieldDefinition fieldBILLLINE_ID = new FieldDefinition();
+        fieldBILLLINE_ID.setName("BILLLINE_ID");
+        fieldBILLLINE_ID.setTypeName("NUMBER");
+        fieldBILLLINE_ID.setSize(19);
+        fieldBILLLINE_ID.setIsPrimaryKey(false);
+        fieldBILLLINE_ID.setIsIdentity(false);
+        fieldBILLLINE_ID.setUnique(false);
+        fieldBILLLINE_ID.setShouldAllowNull(false);
+        table.addField(fieldBILLLINE_ID);
+        
+        ForeignKeyConstraint fk_FK_JPA_BILL_ACTION_BILLLINE_ID = new ForeignKeyConstraint();
+        fk_FK_JPA_BILL_ACTION_BILLLINE_ID.setName("FK_JPA_BILL_ACTION_BILLLINE_ID");
+        fk_FK_JPA_BILL_ACTION_BILLLINE_ID.setTargetTable("JPA_BILL_LINE");
+        fk_FK_JPA_BILL_ACTION_BILLLINE_ID.addSourceField("BILLLINE_ID");
+        fk_FK_JPA_BILL_ACTION_BILLLINE_ID.addTargetField("ID");
+        table.addForeignKeyConstraint(fk_FK_JPA_BILL_ACTION_BILLLINE_ID);
+        
+        return table;
+    }
+    
+    public TableDefinition buildORD_ENTITYATable() {
+        TableDefinition table = new TableDefinition();
+        table.setName("ORD_ENTITY_A");
+        
+        FieldDefinition fieldID = new FieldDefinition();
+        fieldID.setName("ID");
+        fieldID.setTypeName("NUMBER");
+        fieldID.setSize(19);
+        fieldID.setIsPrimaryKey(true);
+        fieldID.setIsIdentity(false);
+        fieldID.setUnique(false);
+        fieldID.setShouldAllowNull(false);
+        table.addField(fieldID);
+        
+        FieldDefinition fieldDESCRIPTION = new FieldDefinition();
+        fieldDESCRIPTION.setName("DESCRIPTION");
+        fieldDESCRIPTION.setTypeName("VARCHAR");
+        fieldDESCRIPTION.setSize(255);
+        fieldDESCRIPTION.setIsPrimaryKey(false);
+        fieldDESCRIPTION.setIsIdentity(false);
+        fieldDESCRIPTION.setUnique(false);
+        fieldDESCRIPTION.setShouldAllowNull(false);
+        table.addField(fieldDESCRIPTION);
+        
+        FieldDefinition fieldENTITYZ_ID = new FieldDefinition();
+        fieldENTITYZ_ID.setName("ENTITYZ_ID");
+        fieldENTITYZ_ID.setTypeName("NUMBER");
+        fieldENTITYZ_ID.setSize(19);
+        fieldENTITYZ_ID.setIsPrimaryKey(false);
+        fieldENTITYZ_ID.setIsIdentity(false);
+        fieldENTITYZ_ID.setUnique(false);
+        fieldENTITYZ_ID.setShouldAllowNull(true);
+        table.addField(fieldENTITYZ_ID);
+        
+        FieldDefinition fieldENTITYA_ORDER = new FieldDefinition();
+        fieldENTITYA_ORDER.setName("ENTITYA_ORDER");
+        fieldENTITYA_ORDER.setTypeName("NUMBER");
+        fieldENTITYA_ORDER.setSize(19);
+        fieldENTITYA_ORDER.setIsPrimaryKey(false);
+        fieldENTITYA_ORDER.setIsIdentity(false);
+        fieldENTITYA_ORDER.setUnique(false);
+        fieldENTITYA_ORDER.setShouldAllowNull(true);
+        table.addField(fieldENTITYA_ORDER);
+        
+        ForeignKeyConstraint fk_FK_ORD_ENTITYA_ORD_ENTITYZ = new ForeignKeyConstraint();
+        fk_FK_ORD_ENTITYA_ORD_ENTITYZ.setName("FK_ORD_ENTITYA_ORD_ENTITYZ");
+        fk_FK_ORD_ENTITYA_ORD_ENTITYZ.addSourceField("ENTITYZ_ID");
+        fk_FK_ORD_ENTITYA_ORD_ENTITYZ.setTargetTable("ORD_ENTITY_Z");
+        fk_FK_ORD_ENTITYA_ORD_ENTITYZ.addTargetField("ID");
+        table.addForeignKeyConstraint(fk_FK_ORD_ENTITYA_ORD_ENTITYZ);
+        
+        return table;
+    }
+    
+    public TableDefinition buildORD_ENTITYZTable() {
+        TableDefinition table = new TableDefinition();
+        table.setName("ORD_ENTITY_Z");
+        
+        FieldDefinition fieldID = new FieldDefinition();
+        fieldID.setName("ID");
+        fieldID.setTypeName("NUMBER");
+        fieldID.setSize(19);
+        fieldID.setIsPrimaryKey(true);
+        fieldID.setIsIdentity(false);
+        fieldID.setUnique(false);
+        fieldID.setShouldAllowNull(false);
+        table.addField(fieldID);
+        
+        FieldDefinition fieldDESCRIPTION = new FieldDefinition();
+        fieldDESCRIPTION.setName("DESCRIPTION");
+        fieldDESCRIPTION.setTypeName("VARCHAR");
+        fieldDESCRIPTION.setSize(255);
+        fieldDESCRIPTION.setIsPrimaryKey(false);
+        fieldDESCRIPTION.setIsIdentity(false);
+        fieldDESCRIPTION.setUnique(false);
+        fieldDESCRIPTION.setShouldAllowNull(false);
+        table.addField(fieldDESCRIPTION);
         
         return table;
     }

@@ -13,6 +13,8 @@
  *       - 374688: JPA 2.1 Converter support
  *     07/08/2014-2.5 Jody Grassel (IBM Corporation)
  *       - 439163: JSE Bootstrapping does not handle "wsjar" URLs referencing war-contained resources
+ *     08/29/2016 Jody Grassel
+ *       - 500441: Eclipselink core has System.getProperty() calls that are not potentially executed under doPriv()
  ******************************************************************************/
 package org.eclipse.persistence.internal.jpa.deployment;
 
@@ -294,7 +296,8 @@ public class PersistenceUnitProcessor {
     public static Set<Archive> findPersistenceArchives(ClassLoader loader){
         // allow alternate persistence location to be specified via system property.  This will allow persistence units
         // with alternate persistence xml locations to be weaved
-        String descriptorLocation = System.getProperty(PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML, PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML_DEFAULT);
+        String descriptorLocation = PrivilegedAccessHelper.getSystemProperty(PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML, PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML_DEFAULT);
+
         return findPersistenceArchives(loader, descriptorLocation);
     }
 
@@ -393,7 +396,7 @@ public class PersistenceUnitProcessor {
     public static Set<SEPersistenceUnitInfo> getPersistenceUnits(ClassLoader loader, Map m, List<URL> jarFileUrls) {
         String descriptorPath = (String) m.get(PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML);
         if(descriptorPath == null) {
-            descriptorPath = System.getProperty(PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML, PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML_DEFAULT);
+            descriptorPath = PrivilegedAccessHelper.getSystemProperty(PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML, PersistenceUnitProperties.ECLIPSELINK_PERSISTENCE_XML_DEFAULT);
         }
         Set<Archive> archives = findPersistenceArchives(loader, descriptorPath, jarFileUrls);
         Set<SEPersistenceUnitInfo> puInfos = new HashSet();
@@ -416,7 +419,7 @@ public class PersistenceUnitProcessor {
         }
 
         ArchiveFactory factory = null;
-        String factoryClassName = System.getProperty(SystemProperties.ARCHIVE_FACTORY, null);
+        String factoryClassName = PrivilegedAccessHelper.getSystemProperty(SystemProperties.ARCHIVE_FACTORY, null);
 
         if (factoryClassName == null) {
             return new ArchiveFactoryImpl();
@@ -682,7 +685,7 @@ public class PersistenceUnitProcessor {
     /**
      * Build the unique persistence name by concatenating the decoded URL with the persistence unit name.
      * A decoded URL is required while persisting on a multi-bytes OS.
-     * @param URL
+     * @param url
      * @param puName
      * @return String
      */
