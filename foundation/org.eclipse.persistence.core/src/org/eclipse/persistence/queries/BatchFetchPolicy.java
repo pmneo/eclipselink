@@ -280,8 +280,17 @@ public class BatchFetchPolicy implements Serializable, Cloneable {
      * This is used for IN batching in batches.
      */
     public void setDataResults(List<AbstractRecord> rows) {
-        this.dataResults = new HashMap<Object, List<AbstractRecord>>();
-        this.dataResults.put(this, rows);
+        if( this.dataResults == null ) {
+            this.dataResults = new HashMap<Object, List<AbstractRecord>>();
+            this.dataResults.put(this, rows);
+        }
+        else {
+            List<AbstractRecord> org = this.dataResults.get( this );
+            if( org == null )
+                this.dataResults.put( this, rows );
+            else
+                org.addAll( rows );
+        }
     }
 
     /**
