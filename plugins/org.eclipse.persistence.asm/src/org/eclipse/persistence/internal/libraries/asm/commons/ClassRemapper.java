@@ -30,12 +30,16 @@
 
 package org.eclipse.persistence.internal.libraries.asm.commons;
 
+import java.util.List;
+
 import org.eclipse.persistence.internal.libraries.asm.AnnotationVisitor;
+import org.eclipse.persistence.internal.libraries.asm.Attribute;
 import org.eclipse.persistence.internal.libraries.asm.ClassVisitor;
-import org.eclipse.persistence.internal.libraries.asm.Opcodes;
-import org.eclipse.persistence.internal.libraries.asm.TypePath;
 import org.eclipse.persistence.internal.libraries.asm.FieldVisitor;
 import org.eclipse.persistence.internal.libraries.asm.MethodVisitor;
+import org.eclipse.persistence.internal.libraries.asm.ModuleVisitor;
+import org.eclipse.persistence.internal.libraries.asm.Opcodes;
+import org.eclipse.persistence.internal.libraries.asm.TypePath;
 
 /**
  * A {@link ClassVisitor} for type remapping.
@@ -49,7 +53,7 @@ public class ClassRemapper extends ClassVisitor {
     protected String className;
 
     public ClassRemapper(final ClassVisitor cv, final Remapper remapper) {
-        this(Opcodes.ASM5, cv, remapper);
+        this(Opcodes.ASM6, cv, remapper);
     }
 
     protected ClassRemapper(final int api, final ClassVisitor cv,
@@ -68,6 +72,12 @@ public class ClassRemapper extends ClassVisitor {
     }
 
     @Override
+    public ModuleVisitor visitModule(String name, int flags, String version) {
+        ModuleVisitor mv = super.visitModule(remapper.mapModuleName(name), flags, version);
+        return mv == null ? null : createModuleRemapper(mv); 
+    }
+    
+    @Override
     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
         AnnotationVisitor av = super.visitAnnotation(remapper.mapDesc(desc),
                 visible);
@@ -76,12 +86,24 @@ public class ClassRemapper extends ClassVisitor {
 
     @Override
     public AnnotationVisitor visitTypeAnnotation(int typeRef,
-                                                 TypePath typePath, String desc, boolean visible) {
+            TypePath typePath, String desc, boolean visible) {
         AnnotationVisitor av = super.visitTypeAnnotation(typeRef, typePath,
                 remapper.mapDesc(desc), visible);
         return av == null ? null : createAnnotationRemapper(av);
     }
 
+    @Override
+    public void visitAttribute(Attribute attr) {
+        if (attr instanceof ModuleHashesAttribute) {
+            ModuleHashesAttribute hashesAttr = new ModuleHashesAttribute();
+            List<String> modules = hashesAttr.modules;
+            for(int i = 0; i < modules.size(); i++) {
+                modules.set(i, remapper.mapModuleName(modules.get(i)));
+            }
+        }
+        super.visitAttribute(attr);
+    }
+    
     @Override
     public FieldVisitor visitField(int access, String name, String desc,
             String signature, Object value) {
@@ -128,5 +150,9 @@ public class ClassRemapper extends ClassVisitor {
 
     protected AnnotationVisitor createAnnotationRemapper(AnnotationVisitor av) {
         return new AnnotationRemapper(av, remapper);
+    }
+    
+    protected ModuleVisitor createModuleRemapper(ModuleVisitor mv) {
+        return new ModuleRemapper(mv, remapper);
     }
 }

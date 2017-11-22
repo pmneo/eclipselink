@@ -33,19 +33,20 @@ import org.eclipse.persistence.internal.libraries.asm.AnnotationVisitor;
 import org.eclipse.persistence.internal.libraries.asm.ClassVisitor;
 import org.eclipse.persistence.internal.libraries.asm.FieldVisitor;
 import org.eclipse.persistence.internal.libraries.asm.MethodVisitor;
+import org.eclipse.persistence.internal.libraries.asm.ModuleVisitor;
 import org.eclipse.persistence.internal.libraries.asm.Opcodes;
 import org.eclipse.persistence.internal.libraries.asm.TypePath;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
- * A {@link ClassVisitor ClassVisitor} that generates SAX 2.0
+ * A {@link org.eclipse.persistence.internal.libraries.asm.ClassVisitor ClassVisitor} that generates SAX 2.0
  * events from the visited class. It can feed any kind of
  * {@link org.xml.sax.ContentHandler ContentHandler}, e.g. XML serializer, XSLT
  * or XQuery engines.
  * 
- * @see Processor
- * @see ASMContentHandler
+ * @see org.eclipse.persistence.internal.libraries.asm.xml.Processor
+ * @see org.eclipse.persistence.internal.libraries.asm.xml.ASMContentHandler
  * 
  * @author Eugene Kuleshov
  */
@@ -69,6 +70,16 @@ public final class SAXClassAdapter extends ClassVisitor {
      * Pseudo access flag used to distinguish inner class flags.
      */
     private static final int ACCESS_INNER = 1048576;
+    
+    /**
+     * Pseudo access flag used to distinguish module flags.
+     */
+    static final int ACCESS_MODULE = 2097152;
+    
+    /**
+     * Pseudo access flag used to distinguish module requires flags.
+     */
+    static final int ACCESS_MODULE_REQUIRES = 4194304;
 
     /**
      * Constructs a new {@link SAXClassAdapter SAXClassAdapter} object.
@@ -81,7 +92,7 @@ public final class SAXClassAdapter extends ClassVisitor {
      *            {@link ContentHandler#endDocument() endDocument()} events.
      */
     public SAXClassAdapter(final ContentHandler h, boolean singleDocument) {
-        super(Opcodes.ASM5);
+        super(Opcodes.ASM6);
         this.sa = new SAXAdapter(h);
         this.singleDocument = singleDocument;
         if (!singleDocument) {
@@ -101,6 +112,21 @@ public final class SAXClassAdapter extends ClassVisitor {
 
         sa.addElement("source", att);
     }
+    
+    @Override
+    public ModuleVisitor visitModule(final String name, final int access,
+            final String version) {
+        AttributesImpl att = new AttributesImpl();
+        att.addAttribute("", "name", "name", "", name);
+        StringBuilder sb = new StringBuilder();
+        appendAccess(access | ACCESS_MODULE, sb);
+        att.addAttribute("", "access", "access", "", sb.toString());
+        if (version != null) {
+          att.addAttribute("", "version", "version", "", encode(version));
+        }
+        sa.addStart("module", att);
+        return new SAXModuleAdapter(sa);
+    }
 
     @Override
     public void visitOuterClass(final String owner, final String name,
@@ -119,7 +145,7 @@ public final class SAXClassAdapter extends ClassVisitor {
 
     @Override
     public AnnotationVisitor visitAnnotation(final String desc,
-                                             final boolean visible) {
+            final boolean visible) {
         return new SAXAnnotationAdapter(sa, "annotation", visible ? 1 : -1,
                 null, desc);
     }
@@ -278,14 +304,26 @@ public final class SAXClassAdapter extends ClassVisitor {
             sb.append("protected ");
         }
         if ((access & Opcodes.ACC_FINAL) != 0) {
-            sb.append("final ");
+            if ((access & ACCESS_MODULE) == 0) {
+                sb.append("final ");
+            } else {
+                sb.append("transitive ");
+            }
         }
         if ((access & Opcodes.ACC_STATIC) != 0) {
             sb.append("static ");
         }
         if ((access & Opcodes.ACC_SUPER) != 0) {
             if ((access & ACCESS_CLASS) == 0) {
-                sb.append("synchronized ");
+                if ((access & ACCESS_MODULE_REQUIRES) != 0) {
+                    sb.append("transitive ");
+                } else {
+                    if ((access & ACCESS_MODULE) == 0) {
+                        sb.append("synchronized ");
+                    } else {
+                        sb.append("open ");
+                    }
+                }
             } else {
                 sb.append("super ");
             }
@@ -294,7 +332,11 @@ public final class SAXClassAdapter extends ClassVisitor {
             if ((access & ACCESS_FIELD) == 0) {
                 sb.append("bridge ");
             } else {
-                sb.append("volatile ");
+                if ((access & ACCESS_MODULE_REQUIRES) == 0) {
+                    sb.append("volatile ");
+                } else {
+                    sb.append("static ");
+                }
             }
         }
         if ((access & Opcodes.ACC_TRANSIENT) != 0) {
@@ -329,7 +371,11 @@ public final class SAXClassAdapter extends ClassVisitor {
             sb.append("deprecated ");
         }
         if ((access & Opcodes.ACC_MANDATED) != 0) {
-            sb.append("mandated ");
+            if ((access & ACCESS_CLASS) == 0) {
+                sb.append("module ");
+            } else {
+                sb.append("mandated ");
+            }
         }
     }
 }

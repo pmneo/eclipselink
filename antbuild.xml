@@ -1,5 +1,5 @@
 <!--/*******************************************************************************
-* Copyright (c) 1998, 2016 Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 1998, 2017 Oracle and/or its affiliates. All rights reserved.
 * This program and the accompanying materials are made available under the
 * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
 * which accompanies this distribution.
@@ -90,7 +90,6 @@
         It may require some configuration of the build.properties to run.
     -->
 <project name="trunk" default="build" basedir="." xmlns:jacoco="antlib:org.jacoco.ant" xmlns:sonar="antlib:org.sonar.ant">
-
     <dirname  property="trunk.build.location_temp" file="${ant.file.trunk}"/>
     <pathconvert targetos="unix" property="trunk.build.location">
         <path>
@@ -134,7 +133,7 @@
 
     <!-- Detect compatible version of JDK (>= 1.8). -->
     <condition property="compat.jdk" value="true">
-        <matches string="${java.version}" pattern="1.(?:[8-9]|[1-9]\d)(?:.\d+)*.*"/>
+        <matches string="${java.version}" pattern="1.(?:[8-9]|[1-9]\d)(?:.\d+)*.*|9.*"/>
     </condition>
     <echo message="JDK version detected: '${java.version}'"/>
     <fail message="A non-compatible version of JDK was detected! Build won't run properly unless running on at least JDK 1.8!." unless="compat.jdk"/>
@@ -170,7 +169,7 @@
         <pathelement path="${eclipselink.plugins}/${jaxb-api.jar}"/>
         <pathelement path="${eclipselink.plugins}/${jaxb-core.jar}"/>
         <pathelement path="${eclipselink.plugins}/${jaxb-xjc.jar}"/>
-        <pathelement path="${eclipselink.jpa.plugins}/${persistence21.jar}"/>
+        <pathelement path="${eclipselink.jpa.plugins}/${persistence22.jar}"/>
         <pathelement path="${eclipselink.plugins}/${resource.jar}"/>
         <pathelement path="${eclipselink.plugins}/${json.jar}"/>
         <pathelement path="${eclipselink.plugins}/${javax.validation.jar}"/>
@@ -781,7 +780,7 @@
         <echo message="Implementation-Version: ${version.string}"/>
         <delete dir="${build.dir}/javax.persistence/${classes.dir}" failonerror="false"/>
         <mkdir dir="${build.dir}/javax.persistence/${classes.dir}"/>
-        <unzip src="${eclipselink.jpa.plugins}/${persistence21.jar}" dest="${build.dir}/javax.persistence/${classes.dir}"/>
+        <unzip src="${eclipselink.jpa.plugins}/${persistence22.jar}" dest="${build.dir}/javax.persistence/${classes.dir}"/>
         <mkdir dir="${build.dir}/hermes/${classes.dir}"/>
         <unzip src="${eclipselink.plugins}/org.eclipse.persistence.jpa.jpql_${version.string}.jar" dest="${build.dir}/hermes/${classes.dir}"/>
         <jar jarfile="${eclipselink.jar}" duplicate="preserve">
@@ -830,7 +829,7 @@
             <fileset
                 dir="${eclipselink.util.jaxb}/${classes.dir}"
                 includes="**/*.class,"/>
-            <!-- JPA 2.0/2.1 concurrent dev solution: New classes from javax.persistence 2.0 & 2.1 -->
+            <!-- JPA 2.0/2.2 concurrent dev solution: New classes from javax.persistence 2.0 & 2.2 -->
             <fileset
                 dir="${build.dir}/javax.persistence/${classes.dir}"
                 includes="
@@ -868,6 +867,8 @@
                     javax/persistence/Expression.class,
                     javax/persistence/QueryDefinition.class,
                     javax/persistence/SelectItem.class,
+                    javax/persistence/SequenceGenerators.class,
+                    javax/persistence/TableGenerators.class,
                     javax/persistence/criteria/CriteriaBuilder.class,
                     javax/persistence/TypedQuery.class,
                     javax/persistence/ValidationMode.class,
@@ -998,7 +999,7 @@
                 <exclude name="javax.inject*"/>
                 <exclude name="*dynamic*.jar"/>
             </zipfileset>
-            <zipfileset dir="${eclipselink.jpa.plugins}/" includes="javax.persistence*_2.1*.jar" excludes="*preview*.jar"/>
+            <zipfileset dir="${eclipselink.jpa.plugins}/" includes="javax.persistence*_2.2*.jar" excludes="*preview*.jar"/>
             <zipfileset dir="${eclipselink.sdo.plugins}/" includes="commonj.sdo*2.1.1*.jar"/>
             <zipfileset dir="${eclipselink.util.plugins}/">
                 <include name="javax.wsdl*.jar"/>
@@ -1127,7 +1128,7 @@
         <property name="eclipselink.javadoc.title" value="${javadoc.prefixTitle}, ${javadoc.postfixTitle}"/>
         <delete dir="${build.dir}/javax.xml.bind" failonerror="false"/>
         <delete dir="${unified.javadocs}" failonerror="false"/>
-        <unzip src="${eclipselink.jpa.plugins}/${persistence21.src.jar}" dest="${build.dir}/jpa21/src"/>
+        <unzip src="${eclipselink.jpa.plugins}/${persistence22.src.jar}" dest="${build.dir}/jpa22/src"/>
         <unzip src="${eclipselink.plugins}/${jaxb-api.src.jar}" dest="${build.dir}/javax.xml.bind/src"/>
         <javadoc
             maxmemory="768m"
@@ -1150,7 +1151,7 @@
             <header><![CDATA[${eclipselink.javadoc.title}]]></header>
 
             <!-- *** include Dependent APIs in Javadoc  *** -->
-            <fileset dir="${build.dir}/jpa21/src" defaultexcludes="yes">
+            <fileset dir="${build.dir}/jpa22/src" defaultexcludes="yes">
                 <include name="javax/persistence/**/*.java"/>
             </fileset>
             <fileset dir="${build.dir}/javax.xml.bind/src" defaultexcludes="yes">
@@ -1251,7 +1252,7 @@
         <property name="eclipselink.javadoc.title" value="${javadoc.prefixTitle}, ${javadoc.postfixTitle}"/>
         <delete dir="${build.dir}/javax.xml.bind" failonerror="false"/>
         <delete dir="${eclipselink.javadocs}" failonerror="false"/>
-        <unzip src="${eclipselink.jpa.plugins}/${persistence21.src.jar}" dest="${build.dir}/jpa21/src"/>
+        <unzip src="${eclipselink.jpa.plugins}/${persistence22.src.jar}" dest="${build.dir}/jpa22/src"/>
         <unzip src="${eclipselink.plugins}/${jaxb-api.src.jar}" dest="${build.dir}/javax.xml.bind/src"/>
         <javadoc
             maxmemory="768m"
@@ -1274,7 +1275,7 @@
             <header><![CDATA[${eclipselink.javadoc.title}]]></header>
 
             <!-- *** include Dependent APIs in Javadoc  *** -->
-            <fileset dir="${build.dir}/jpa21/src" defaultexcludes="yes">
+            <fileset dir="${build.dir}/jpa22/src" defaultexcludes="yes">
                 <include name="javax/persistence/**/*.java"/>
             </fileset>
             <fileset dir="${build.dir}/javax.xml.bind/src" defaultexcludes="yes">
@@ -1411,7 +1412,7 @@
     <target name="package-installer-zip" description="build EclipseLink installer zip - includes utils and javadocs">
         <delete file="${eclipselink.install.prefix}${eclipselink.zip.suffix}" failonerror="false"/>
         <copy file="${eclipselink.plugins}/org.eclipse.persistence.dbws.builder_${version.string}.jar" tofile="${build.dir}/${dbws-util.jar}"/>
-        <unzip src="${eclipselink.jpa.plugins}/${persistence21.src.jar}" dest="${build.dir}/jpa21/src"/>
+        <unzip src="${eclipselink.jpa.plugins}/${persistence22.src.jar}" dest="${build.dir}/jpa22/src"/>
         <zip destfile="${eclipselink.install.prefix}${eclipselink.zip.suffix}">
             <!-- miscellaneous files -->
             <zipfileset dir="." prefix="eclipselink">
@@ -1439,7 +1440,7 @@
             <zipfileset dir="./${eclipselink.core.xsds}" includes="*.xsd" prefix="eclipselink/xsds"/>
             <!-- jpa XSD files -->
             <zipfileset dir="./${eclipselink.jpa.xsds}" includes="eclipselink*.xsd" prefix="eclipselink/xsds"/>
-            <zipfileset dir="${build.dir}/jpa21/src/javax/persistence" includes="*.xsd" prefix="eclipselink/xsds"/>
+            <zipfileset dir="${build.dir}/jpa22/src/javax/persistence" includes="*.xsd" prefix="eclipselink/xsds"/>
             <!-- moxy XSD files -->
             <zipfileset dir="./${eclipselink.moxy.xsds}" includes="*.xsd" prefix="eclipselink/xsds"/>
             <!-- dbws XSD files -->
@@ -1457,8 +1458,8 @@
             <zipfileset dir="${eclipselink.plugins}/" includes="${eclipselink.extension.prefix}_${version.string}.jar, ${eclipselink.extension.prefix}.source_${version.string}.jar" prefix="eclipselink/jlib/extension"/>
             <!-- modelgen processor jar -->
             <zipfileset dir="${eclipselink.plugins}/" includes="${eclipselink.modelgen.prefix}_${version.string}.jar, ${eclipselink.modelgen.prefix}.source_${version.string}.jar" prefix="eclipselink/jlib/jpa"/>
-            <!-- jpa persistence 2.1 jars -->
-            <zipfileset dir="${eclipselink.jpa.plugins}/" includes="${persistence21.jar}, ${persistence21.src.jar}" prefix="eclipselink/jlib/jpa"/>
+            <!-- jpa persistence 2.2 jars -->
+            <zipfileset dir="${eclipselink.jpa.plugins}/" includes="${persistence22.jar}, ${persistence22.src.jar}" prefix="eclipselink/jlib/jpa"/>
             <!-- JPA RS jar -->
             <zipfileset dir="${eclipselink.plugins}/" includes="org.eclipse.persistence.jpars_*.jar, org.eclipse.persistence.jpars.source*.jar" prefix="eclipselink/jlib/jpa"/>
             <!-- moxy jar's and zips -->
@@ -1676,7 +1677,7 @@
     </target>
     <!-- run JSE tests -->
     <target name="test-jpa-jse" description="run the JPA JSE tests">
-        <ant antfile="antbuild.xml" dir="${eclipselink.jpa.test.jse}" target="test-no-report"/>
+        <ant antfile="antbuild.xml" dir="${eclipselink.jpa.test.jse}" target="test"/>
     </target>
 
     <target name="init-coverage">

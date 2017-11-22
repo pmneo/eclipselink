@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2017 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -1393,6 +1393,26 @@ public class DatabaseAccessor extends DatasourceAccessor {
                 value = resultSet.getTime(columnNumber);
             } else if (fieldType == ClassConstants.TIMESTAMP) {
                 value = resultSet.getTimestamp(columnNumber);
+            } else if (fieldType == ClassConstants.TIME_LTIME) {
+                final java.sql.Timestamp ts = resultSet.getTimestamp(columnNumber);
+                value = ts != null ? ts.toLocalDateTime().toLocalTime()
+                        : platform.getConversionManager().getDefaultNullValue(ClassConstants.TIME_LTIME);
+            } else if (fieldType == ClassConstants.TIME_LDATE) {
+                final java.sql.Date dt = resultSet.getDate(columnNumber);
+                value = dt != null ? dt.toLocalDate()
+                        : platform.getConversionManager().getDefaultNullValue(ClassConstants.TIME_LDATE);
+            } else if (fieldType == ClassConstants.TIME_LDATETIME) {
+                final java.sql.Timestamp ts = resultSet.getTimestamp(columnNumber);
+                value = ts != null ? ts.toLocalDateTime()
+                        : platform.getConversionManager().getDefaultNullValue(ClassConstants.TIME_LDATETIME);
+            } else if (fieldType == ClassConstants.TIME_OTIME) {
+                final java.sql.Timestamp ts = resultSet.getTimestamp(columnNumber);
+                value = ts != null ? ts.toLocalDateTime().toLocalTime().atOffset(java.time.OffsetDateTime.now().getOffset())
+                        : platform.getConversionManager().getDefaultNullValue(ClassConstants.TIME_OTIME);
+            } else if (fieldType == ClassConstants.TIME_ODATETIME) {
+                final java.sql.Timestamp ts = resultSet.getTimestamp(columnNumber);
+                value = ts != null ? java.time.OffsetDateTime.ofInstant(ts.toInstant(), java.time.ZoneId.systemDefault())
+                        : platform.getConversionManager().getDefaultNullValue(ClassConstants.TIME_ODATETIME);
             }
         } else if (fieldType == ClassConstants.BIGINTEGER) {
             value = resultSet.getBigDecimal(columnNumber);
