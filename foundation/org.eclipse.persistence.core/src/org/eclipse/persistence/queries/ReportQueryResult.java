@@ -205,14 +205,43 @@ public class ReportQueryResult implements Serializable, Map {
                     throw QueryException.reportQueryResultSizeMismatch(itemIndex + size, rowSize);
                 }
                 AbstractRecord subRow = row;
+
                 // Check if at the start of the row, then avoid building a subRow.
                 if (itemIndex > 0) {
                     Vector trimedFields = new NonSynchronizedSubVector(row.getFields(), itemIndex, rowSize);
                     Vector trimedValues = new NonSynchronizedSubVector(row.getValues(), itemIndex, rowSize);
                     subRow = new DatabaseRecord(trimedFields, trimedValues);
                 }
-                if (mapping != null && mapping.isAggregateObjectMapping()){
-                    value = ((AggregateObjectMapping)mapping).buildAggregateFromRow(subRow, null, null, joinManager, query, false, query.getSession(), true);
+                if (mapping != null && mapping.isAggregateObjectMapping())
+                {
+                    final AggregateObjectMapping amapping = ((AggregateObjectMapping)mapping);
+
+                    Vector<DatabaseField> aggregateFields = amapping.getReferenceDescriptor().getAllFields();
+
+                    Vector<DatabaseField> fakeFields = new Vector<DatabaseField>();
+                    Vector<Object> fakeValues = new Vector<Object>();
+
+                    int sourceIndex = item.getResultIndex();
+                    for( DatabaseField af: aggregateFields )
+                    {
+                        int targetIndex = af.index;
+
+                        while( fakeFields.size() <= targetIndex )
+                        {
+                            fakeFields.add( null );
+                            fakeValues.add( null );
+                        }
+
+                        fakeFields.set( targetIndex, row.getFields().get( sourceIndex ) );
+                        fakeValues.add( targetIndex, row.getValues().get( sourceIndex ) );
+
+                        sourceIndex++;
+                    }
+
+                    subRow = new DatabaseRecord(fakeFields, fakeValues);
+
+                    value = amapping.buildAggregateFromRow(subRow, null, null, joinManager, query, false, query.getSession(), true);
+                    //value = ((AggregateObjectMapping)mapping).buildAggregateFromRow(subRow, null, null, joinManager, query, false, query.getSession(), true);
                 } else {
                     //TODO : Support prefrechedCacheKeys in report query
                     value = descriptor.getObjectBuilder().buildObject(query, subRow, joinManager);

@@ -1002,6 +1002,16 @@ public class DirectCollectionMapping extends CollectionMapping implements Relati
 
     /**
      * INTERNAL:
+     * Extract the primary key value from the source row.
+     * Used for batch reading, most following same order and fields as in the mapping.
+     */
+    @Override
+    protected Object[] extractBatchKeysFromRow(AbstractRecord row, AbstractSession session) {
+        return extractBatchKeysFromRow( row, session, sourceKeyFields );
+    }
+    
+    /**
+     * INTERNAL:
      * Return the selection criteria used to IN batch fetching.
      */
     @Override

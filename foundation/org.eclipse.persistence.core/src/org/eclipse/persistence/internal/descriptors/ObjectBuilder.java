@@ -4138,9 +4138,13 @@ public class ObjectBuilder extends CoreObjectBuilder<AbstractRecord, AbstractSes
         int size = mappings.size();
         for (int index = 0; index < size; index++) {
             DatabaseMapping mapping = mappings.get(index);
-            if (((!cascadeOnly && !isTargetCloneOfOriginal)
-                    || (cascadeOnly && mapping.isForeignReferenceMapping())
-                    || (isTargetCloneOfOriginal && mapping.isCloningRequired()))
+            if (
+            		(
+            				(!cascadeOnly && !isTargetCloneOfOriginal)
+                    	|| 	(cascadeOnly && mapping.isForeignReferenceMapping())
+                    	|| 	(isTargetCloneOfOriginal && mapping.isCloningRequired())
+                    	||  mapping.isAggregateObjectMapping() //do this also for Aggreage mappings ...
+                    )
                   && (sourceFetchGroup == null || sourceFetchGroup.containsAttributeInternal(mapping.getAttributeName()))) {
                 mapping.mergeIntoObject(target, isUnInitialized, source, mergeManager, targetSession);
             }

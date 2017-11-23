@@ -228,6 +228,15 @@ public abstract class ObjectReferenceMapping extends ForeignReferenceMapping {
         if ((cloneAttributeValue == backUpAttributeValue) && (!owner.isNew())) {// if it is new record the value
             return null;
         }
+        
+        //support of multiple cloned values
+        if( backUpAttributeValue != null && session instanceof UnitOfWorkImpl )
+        {
+            final UnitOfWorkImpl uow = (UnitOfWorkImpl) session;
+            
+            if( uow.getCloneToOriginals().get( cloneAttributeValue ) == backUpAttributeValue )
+                return null;
+        }
 
         ObjectReferenceChangeRecord record = internalBuildChangeRecord(cloneAttributeValue, owner, session);
         if (!owner.isNew()) {
@@ -815,15 +824,17 @@ public abstract class ObjectReferenceMapping extends ForeignReferenceMapping {
                 keyForObjectInMemory = getPrimaryKeyForObject(objectInMemory, session);
             }
             if ((keyForObjectInMemory == null) || !keyForObjectInDatabase.equals(keyForObjectInMemory)) {
-                if (this.isCascadeOnDeleteSetOnDatabase && !hasRelationTableMechanism() && session.isUnitOfWork()) {
-                    ((UnitOfWorkImpl)session).getCascadeDeleteObjects().add(objectFromDatabase);
-                }
-                DeleteObjectQuery deleteQuery = new DeleteObjectQuery();
-                deleteQuery.setIsExecutionClone(true);
-                deleteQuery.setObject(objectFromDatabase);
-                deleteQuery.setCascadePolicy(query.getCascadePolicy());
-                session.executeQuery(deleteQuery);
-            }
+                if (objectFromDatabase != null) {
+                	if (this.isCascadeOnDeleteSetOnDatabase && !hasRelationTableMechanism() && session.isUnitOfWork()) {
+                	    ((UnitOfWorkImpl)session).getCascadeDeleteObjects().add(objectFromDatabase);
+               		}
+                	DeleteObjectQuery deleteQuery = new DeleteObjectQuery();
+                	deleteQuery.setIsExecutionClone(true);
+                	deleteQuery.setObject(objectFromDatabase);
+                	deleteQuery.setCascadePolicy(query.getCascadePolicy());
+                	session.executeQuery(deleteQuery);
+            	}
+        	}
         }
 
         if (!isForeignKeyRelationship()) {

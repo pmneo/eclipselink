@@ -1955,6 +1955,12 @@ public class Helper extends CoreHelper implements Serializable {
         if ((timePortion.indexOf('-') == -1) && (timePortion.indexOf('/') == -1) && (timePortion.indexOf('.') == -1) && (timePortion.indexOf(':') == -1)) {
             throw ConversionException.incorrectTimeFormat(timePortion);
         }
+        
+        final int ppos = timePortion.indexOf( '+' );
+        
+        if( ppos > 0 )
+        	timePortion = timePortion.substring( 0, ppos );
+        
         StringTokenizer timeStringTokenizer = new StringTokenizer(timePortion, " /:.-");
 
         try {
@@ -2047,6 +2053,11 @@ public class Helper extends CoreHelper implements Serializable {
         if ((timestampString.indexOf('-') == -1) && (timestampString.indexOf('/') == -1) && (timestampString.indexOf('.') == -1) && (timestampString.indexOf(':') == -1)) {
             throw ConversionException.incorrectTimestampFormat(timestampString);
         }
+        final int ppos = timestampString.indexOf( '+' );
+        
+        if( ppos > 0 )
+        	timestampString = timestampString.substring( 0, ppos );
+        
         StringTokenizer timestampStringTokenizer = new StringTokenizer(timestampString, " /:.-");
 
         int year;
