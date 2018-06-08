@@ -26,6 +26,10 @@ public class OptimisticLockException extends EclipseLinkException {
 
     /** Store the query that raised the optimistic violation. */
     protected transient ObjectLevelModifyQuery query;
+    
+    protected transient String relatedClass;
+    protected transient Object relatedObject;
+    protected transient Vector<Object> relatedPKs;
 
     // ERROR CODES
     public final static int NO_VERSION_NUMBER_WHEN_DELETING = 5001;
@@ -69,8 +73,25 @@ public class OptimisticLockException extends EclipseLinkException {
      * Return the object for which the problem was detected.
      */
     public Object getObject() {
-        return getQuery().getObject();
+    	if( getQuery() != null )
+    		return getQuery().getObject();
+    	else
+    		return relatedObject;
     }
+    
+    public String getRelatedClass() {
+    	if( relatedClass == null ) {
+    		final Object object = getObject();
+    		if( object != null )
+    			relatedClass = object.getClass().getName();
+    	}
+    		
+    	return relatedClass;
+	}
+    
+    public Vector<Object> getRelatedPKs() {
+		return relatedPKs;
+	}
 
     /**
      * PUBLIC:
@@ -94,6 +115,8 @@ public class OptimisticLockException extends EclipseLinkException {
 
         OptimisticLockException optimisticLockException = new OptimisticLockException(ExceptionMessageGenerator.buildMessage(OptimisticLockException.class, MUST_HAVE_MAPPING_WHEN_IN_OBJECT, args));
         optimisticLockException.setErrorCode(MUST_HAVE_MAPPING_WHEN_IN_OBJECT);
+        optimisticLockException.relatedClass = aClass.getName();
+        
         return optimisticLockException;
 
     }
@@ -151,6 +174,9 @@ public class OptimisticLockException extends EclipseLinkException {
 
         OptimisticLockException optimisticLockException = new OptimisticLockException(ExceptionMessageGenerator.buildMessage(OptimisticLockException.class, OBJECT_CHANGED_SINCE_LAST_MERGE, args));
         optimisticLockException.setErrorCode(OBJECT_CHANGED_SINCE_LAST_MERGE);
+        optimisticLockException.relatedObject = object;
+        optimisticLockException.relatedClass = object.getClass().getName();
+        
         return optimisticLockException;
     }
 
@@ -159,6 +185,9 @@ public class OptimisticLockException extends EclipseLinkException {
 
         OptimisticLockException optimisticLockException = new OptimisticLockException(ExceptionMessageGenerator.buildMessage(OptimisticLockException.class, UNWRAPPING_OBJECT_DELETED_SINCE_LAST_READ, args));
         optimisticLockException.setErrorCode(UNWRAPPING_OBJECT_DELETED_SINCE_LAST_READ);
+        optimisticLockException.relatedClass = className;
+        optimisticLockException.relatedPKs = pkVector;
+        
         return optimisticLockException;
     }
 
