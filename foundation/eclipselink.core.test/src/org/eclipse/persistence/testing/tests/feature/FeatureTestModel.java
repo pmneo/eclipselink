@@ -1,15 +1,17 @@
-/*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+/*
+ * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
+ *
  * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
- * which accompanies this distribution.
- * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
- * and the Eclipse Distribution License is available at
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0,
+ * or the Eclipse Distribution License v. 1.0 which is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *
- * Contributors:
- *     Oracle - initial API and implementation from Oracle TopLink
- ******************************************************************************/
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+// Contributors:
+//     Oracle - initial API and implementation from Oracle TopLink
 package org.eclipse.persistence.testing.tests.feature;
 
 import org.eclipse.persistence.testing.models.insurance.InsuranceSystem;
@@ -30,7 +32,6 @@ import org.eclipse.persistence.testing.tests.expressions.ExpressionSubSelectTest
 import org.eclipse.persistence.testing.tests.expressions.ExpressionTestSuite;
 import org.eclipse.persistence.testing.tests.expressions.ExpressionUnitTestSuite;
 import org.eclipse.persistence.testing.tests.identitymaps.IdentityMapTestSuite;
-import org.eclipse.persistence.testing.tests.logging.LoggingTestSuite;
 import org.eclipse.persistence.testing.tests.transactions.ReadingThroughWriteConnectionInTransactionTest;
 import org.eclipse.persistence.testing.tests.transactions.TransactionTestSuite;
 import org.eclipse.persistence.testing.tests.writing.CommitOrderTest;
@@ -81,7 +82,6 @@ public class FeatureTestModel extends TestModel {
     }
 
     public void addTests() {
-        addTest(new LoggingTestSuite());
         addTest(new IdentityMapTestSuite());
         addTest(new ExpressionTestSuite());
         addTest(new ExpressionInMemoryTestSuite());
@@ -120,7 +120,6 @@ public class FeatureTestModel extends TestModel {
 
     //SRG test set is maintained by QA only, do NOT add any new tests into it.
     public void addSRGTests() {
-        addTest(new LoggingTestSuite(true));
         addTest(new ExpressionTestSuite(true));
         addTest(new QueryFrameworkTestSuite(true));
         addTest(new TransactionTestSuite(true));

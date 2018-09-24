@@ -1,15 +1,31 @@
-<!--/*******************************************************************************
-* This program and the accompanying materials are made available under the
-* terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
-* which accompanies this distribution.
-* The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
-* and the Eclipse Distribution License is available at
-* http://www.eclipse.org/org/documents/edl-v10.php.
-*
-* Contributors:
-*     Rick Curtis- initial API and implementation
-#******************************************************************************/-->
-<project name="eclipselink.jpa.test.jse" default="test" basedir=".">   
+<!--
+
+    Copyright (c) 2014, 2018 Oracle and/or its affiliates. All rights reserved.
+    Copyright (c) 2014, 2018 IBM and/or its affiliates. All rights reserved.
+
+    This program and the accompanying materials are made available under the
+    terms of the Eclipse Public License v. 2.0 which is available at
+    http://www.eclipse.org/legal/epl-2.0,
+    or the Eclipse Distribution License v. 1.0 which is available at
+    http://www.eclipse.org/org/documents/edl-v10.php.
+
+    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+-->
+
+<!--
+  Contributors:
+      Rick Curtis- initial API and implementation
+-->
+<project name="eclipselink.jpa.test.jse" default="test" basedir=".">
+
+    <!-- Initialize environment variables first. Do not place lines above these. -->
+    <property environment="env" />
+    <property file="${user.home}/build.properties" />
+    <property file="${test.properties}" />
+    <property file="./antbuild.properties" />
+    <property file="./test.properties" />
+
     <property name="jse.el.root"            value="${basedir}/../.."/>
     <property name="jse.jpa.root"           value="${basedir}/.."/>
     
@@ -27,20 +43,19 @@
 
     <!-- Not sure if there is a better way to refer to dependencies? -->
     <property name="jse.eclipselink.jar" value="${jse.el.root}/eclipselink.jar"/>
-    <property name="javax.transaction" value="${jse.el.plugins.dir}/javax.transaction_1.1.0.v201002051055.jar"/>
+    <property name="javax.transaction" value="${jse.el.plugins.dir}/javax.transaction.api_1.3.0.jar"/>
     <property name="javax.validation" value="${jse.el.plugins.dir}/javax.validation.api_2.0.1.Final.jar"/>
-    <property name="javax.persistence" value="${jse.jpa.plugins.dir}/javax.persistence_2.2.0.v201708071007.jar"/>
+    <property name="javax.persistence" value="${jse.jpa.plugins.dir}/javax.persistence_2.2.1.v201807122140.jar"/>
     <property name="jse.modelgen.jar" value="${jse.el.plugins.dir}/org.eclipse.persistence.jpa.modelgen_${version.string}.jar"/>
-
-    <property environment="env" />
-    <property file="${user.home}/build.properties"/>
-    <property file="${test.properties}" />
-    <property file="./antbuild.properties" />
-    <property file="./test.properties" />
 
     <!-- JVM used to run tests -->
     <property name="test.junit.jvm" value="${env.JAVA_HOME}"/>
     <property name="test.junit.jvm.exec" value="${test.junit.jvm}/bin/java"/>
+
+    <!-- JVM specific settings -->
+    <condition property="test.junit.jvm.modules.prop" value="-Dignore.modules=true" else="${test.junit.jvm.modules}">
+        <matches pattern="[1-8]\..*" string="${java.version}"/>
+    </condition>
 
     <path id="compile.jse.path">
         <pathelement path="${jse.eclipselink.jar}" />
@@ -86,8 +101,12 @@
         <property name="additional.jvmargs" value="-Ddummy2=dummy"/>
         <property name="debugargs" value="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=7777"/>
         <property name="rmi" value="-Djava.naming.provider.url=rmi://localhost:${rmi.port} -Djava.naming.factory.initial=com.sun.jndi.rmi.registry.RegistryContextFactory"/>
-        <junit jvm="${test.junit.jvm.exec}" printsummary="on" haltonfailure="false" failureproperty="fail" fork="yes" dir="${jse.classes.dir}" forkmode="once">
+        <junit jvm="${test.junit.jvm.exec}" printsummary="on" haltonfailure="false" failureproperty="fail" logfailedtests="true"
+               fork="yes" dir="${jse.classes.dir}" forkmode="once">
+            <jvmarg line="${test.junit.jvm.modules.prop}"/>
             <jvmarg line="${additional.jvmargs} ${rmi}"/>
+            <sysproperty key="additional.jvmargs" value="${additional.jvmargs}"/>
+            <sysproperty key="test.junit.jvm.modules" value="${test.junit.jvm.modules.prop}"/>
             <sysproperty key="javax.persistence.jdbc.url" value="${db.url}"/>
             <sysproperty key="javax.persistence.jdbc.driver" value="${db.driver}"/>
             <sysproperty key="javax.persistence.jdbc.user" value="${db.user}"/>
@@ -107,6 +126,14 @@
             </batchtest>
 
         </junit>
+        <fail message="TESTS FAILED !">
+            <condition>
+                <and>
+                    <isset property="fail"/>
+                    <istrue value="${test.fail.fast}"/>
+                </and>
+            </condition>
+        </fail>
     </target>
     
     <target name="test-report">

@@ -1,3 +1,17 @@
+<!--
+
+    Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+
+    This program and the accompanying materials are made available under the
+    terms of the Eclipse Public License v. 2.0 which is available at
+    http://www.eclipse.org/legal/epl-2.0,
+    or the Eclipse Distribution License v. 1.0 which is available at
+    http://www.eclipse.org/org/documents/edl-v10.php.
+
+    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+-->
+
 <persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence
@@ -42,7 +56,6 @@
         <class>org.eclipse.persistence.testing.models.jpa21.advanced.converters.TagConverter</class>
         <class>org.eclipse.persistence.testing.models.jpa21.advanced.converters.TimeConverter</class>
         <class>org.eclipse.persistence.testing.models.jpa21.advanced.converters.ResponsibilityConverter</class>
-
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
 
         <properties>
@@ -176,6 +189,21 @@
         <properties>
             <property name="eclipselink.weaving" value="true" />
             <property name="eclipselink.ddl-generation" value="none" />
+        </properties>
+    </persistence-unit>
+
+    <persistence-unit name="AnimalsPU" transaction-type="RESOURCE_LOCAL">
+        <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+        <class>org.eclipse.persistence.testing.models.jpa21.advanced.animals.Animal</class>
+        <class>org.eclipse.persistence.testing.models.jpa21.advanced.animals.Rodent</class>
+        <class>org.eclipse.persistence.testing.models.jpa21.advanced.animals.Hedgehog</class>
+        <class>org.eclipse.persistence.testing.models.jpa21.advanced.animals.Beaver</class>
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
+        <properties>
+            <property name="eclipselink.session-name" value="animal-session"/>
+            <property name="eclipselink.orm.validate.schema" value="true"/>
+            <property name="eclipselink.jdbc.uppercase-columns" value="true"/>
+            <property name="javax.persistence.schema-generation.database.action" value="drop-and-create"/>
         </properties>
     </persistence-unit>
 

@@ -1,16 +1,18 @@
-/*******************************************************************************
+/*
  * Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+ *
  * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
- * which accompanies this distribution.
- * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
- * and the Eclipse Distribution License is available at
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0,
+ * or the Eclipse Distribution License v. 1.0 which is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *
- * Contributors:
- *     02/17/2018-2.7.2 Lukas Jungmann
- *       - 531305: Canonical model generator fails to run on JDK9
- ******************************************************************************/
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+// Contributors:
+//     02/17/2018-2.7.2 Lukas Jungmann
+//       - 531305: Canonical model generator fails to run on JDK9
 package org.eclipse.persistence.jpa.test.modelgen;
 
 import java.io.BufferedWriter;
@@ -57,7 +59,7 @@ public class TestProcessor {
             }
         }
     }
-    
+
     @Test
     public void testProc() throws Exception {
         File runDir = new File(System.getProperty("run.dir"), "testproc");
@@ -82,7 +84,7 @@ public class TestProcessor {
         sfm.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(cpDir));
 
         TestFO entity = new TestFO("org.Sample",
-                "package org; import javax.persistence.Entity; @Entity public class Sample { public  Sample() {} public int getX() {return 1;}}");
+                "package org; import javax.persistence.Entity; @Entity public class Sample { public  Sample() {} public int getX() {return 1;} interface A {}}");
         TestFO nonEntity = new TestFO("org.NotE",
                 "package org; import javax.persistence.Entity; public class NotE extends some.IF { public  NotE() {} @custom.Ann public external.Cls getW() {return new Object();}}");
         TestFO generated8 = new TestFO("org.Gen8",
@@ -90,7 +92,7 @@ public class TestProcessor {
         TestFO generated9 = new TestFO("org.Gen9",
                 "package org; @javax.annotation.processing.Generated(\"com.example.Generator\") public class Gen9 { public  Gen9() {} public int getZ() {return 9*42;}}");
         CompilationTask task = compiler.getTask(new PrintWriter(System.out), sfm, diagnostics,
-                Arrays.asList("-proc:only", "-Aeclipselink.logging.level.processor=OFF", "-Aeclipselink.canonicalmodel.use_static_factory=false"), null,
+                getJavacOptions("-Aeclipselink.logging.level.processor=OFF"), null,
                 Arrays.asList(entity, nonEntity, generated8, generated9));
         CanonicalModelProcessor modelProcessor = new CanonicalModelProcessor();
         task.setProcessors(Collections.singleton(modelProcessor));
@@ -99,7 +101,9 @@ public class TestProcessor {
         for ( Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
             System.out.println(diagnostic);
         }
-        Assert.assertTrue("Model file not generated", new File(srcOut, "org/Sample_.java").exists());
+        File outputFile = new File(srcOut, "org/Sample_.java");
+        Assert.assertTrue("Model file not generated", outputFile.exists());
+        Assert.assertTrue(Files.lines(outputFile.toPath()).anyMatch(s -> s.contains("@StaticMetamodel(Sample.class)")));
     }
 
     @Test
@@ -156,6 +160,18 @@ public class TestProcessor {
         verifyLogging("testGlobalLoggingFinestFromPU", pu, true);
     }
 
+    private List<String> getJavacOptions(String... opts) {
+        List<String> result = new ArrayList<String>();
+        String systemOpts = System.getProperty("test.junit.jvm.modules");
+        if (systemOpts != null && systemOpts.contains("--add-modules")) {
+            result.addAll(Arrays.asList(System.getProperty("test.junit.jvm.modules").split(" ")));
+        }
+        result.add("-proc:only");
+        result.add("-Aeclipselink.canonicalmodel.use_static_factory=false");
+        result.addAll(Arrays.asList(opts));
+        System.out.println("OPTIONS: " + result);
+        return result;
+    }
     /**
      * Verify logging output suppression
      * @param testName name of the test
@@ -189,15 +205,8 @@ public class TestProcessor {
         TestFO entity = new TestFO("org.Sample",
                 "package org; import javax.persistence.Entity; @Entity public class Sample { public  Sample() {} public int getX() {return 1;}}");
 
-        List<String> optionsList = new ArrayList<>(options != null ? options.length + 2 : 2);
-        optionsList.add("-proc:only");
-        optionsList.add("-Aeclipselink.canonicalmodel.use_static_factory=false");
-        for (String option : options) {
-            optionsList.add(option);
-        }
-
         CompilationTask task = compiler.getTask(
-                new PrintWriter(System.out), sfm, diagnostics, optionsList, null,
+                new PrintWriter(System.out), sfm, diagnostics, getJavacOptions(options), null,
                 Arrays.asList(entity));
         CanonicalModelProcessor modelProcessor = new CanonicalModelProcessor();
         task.setProcessors(Collections.singleton(modelProcessor));

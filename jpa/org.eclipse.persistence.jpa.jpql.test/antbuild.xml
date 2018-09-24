@@ -1,11 +1,31 @@
-<!--/*******************************************************************************
-* This program and the accompanying materials are made available under the
-* terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
-* which accompanies this distribution.
-* The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
-* and the Eclipse Distribution License is available at
-* http://www.eclipse.org/org/documents/edl-v10.php.
-*
+<!--
+
+    Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+
+    This program and the accompanying materials are made available under the
+    terms of the Eclipse Public License v. 2.0 which is available at
+    http://www.eclipse.org/legal/epl-2.0,
+    or the Eclipse Distribution License v. 1.0 which is available at
+    http://www.eclipse.org/org/documents/edl-v10.php.
+
+    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+-->
+
+<!--
+  Contributors:
+      pfilion - initial API and implementation
+-->
+
+<!-- This ant project includes the following tasks:
+        - build (default) : compiles Hermes tests, packages test jars
+        - compile : compiles Hermes tests
+        - package : jars Hermes test jars
+        - test : runs AllHermesTests
+
+        It requires some configuration of the build.properties and test.properties to run.
+-->
+<!--
 *   Ant naming conventions:
 *   - regardless of the actual OS platform,'/' is the directory separator
 *     (Ant will convert as appropriate).
@@ -26,18 +46,6 @@
 *   - OS environment variables are in ALLCAPS and have 'env' as a prefix
 *     e.g. ${env.XXX}.
 *   - Ant properties are lower case.
-*
-* Contributors:
-*     pfilion - initial API and implementation
-#******************************************************************************/-->
-
-<!-- This ant project includes the following tasks:
-        - build (default) : compiles Hermes tests, packages test jars
-        - compile : compiles Hermes tests
-        - package : jars Hermes test jars
-        - test : runs AllHermesTests
-
-        It requires some configuration of the build.properties and test.properties to run.
 -->
 <project name="eclipselink.hermes.test" default="build" basedir=".">
     <available file="../${ant.project.name}" type="dir" property="hermes.test.is.local"/>
@@ -200,7 +208,8 @@
         <!-- Can be set e.g. in test.properties to add VM options for a particular platform/driver  -->
         <property name="additional.jvmargs" value="-Ddummy2=dummy"/>
 
-        <junit jvm="${test.junit.jvm.exec}" printsummary="yes" haltonfailure="yes" fork="yes" forkmode="once" showoutput="true" maxmemory="${max.heap.memory}" dir="${run.dir}">
+        <junit jvm="${test.junit.jvm.exec}" printsummary="yes" haltonfailure="yes" failureproperty="junit.failed" logfailedtests="true"
+               fork="yes" forkmode="once" showoutput="true" maxmemory="${max.heap.memory}" dir="${run.dir}">
             <jvmarg value="-Declipselink.logging.level=${logging.level}"/>
             <jvmarg line="${additional.jvmargs}"/>
             <classpath>
@@ -210,6 +219,14 @@
             <test name="${TEST_CLASS}" haltonfailure="no" outfile="${report.dir}/${TEST_CLASS}-test-results">
             </test>
         </junit>
+        <fail message="TESTS FAILED !">
+            <condition>
+                <and>
+                    <isset property="junit.failed"/>
+                    <istrue value="${test.fail.fast}"/>
+                </and>
+            </condition>
+        </fail>
     </target>
 
     <!-- Generate the Hermes tests report -->

@@ -1,17 +1,20 @@
-/*******************************************************************************
- * Copyright (c) 1998, 2017 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
+/*
+ * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018 IBM Corporation. All rights reserved.
+ *
  * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
- * which accompanies this distribution.
- * The Eclipse Public License is available at http://www.eclipse.org/legal/epl-v10.html
- * and the Eclipse Distribution License is available at
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0,
+ * or the Eclipse Distribution License v. 1.0 which is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *
- * Contributors:
- *     Oracle - initial API and implementation from Oracle TopLink
- *     02/03/2017 - Dalia Abo Sheasha
- *       - 509693 : EclipseLink generates inconsistent SQL statements for SubQuery
- ******************************************************************************/
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+// Contributors:
+//     Oracle - initial API and implementation from Oracle TopLink
+//     02/03/2017 - Dalia Abo Sheasha
+//       - 509693 : EclipseLink generates inconsistent SQL statements for SubQuery
 
 package org.eclipse.persistence.testing.tests.jpa.criteria;
 
@@ -122,6 +125,7 @@ public class AdvancedCriteriaQueryTestSuite extends JUnitTestCase {
         suite.addTest(new AdvancedCriteriaQueryTestSuite("testInCollectionEntity"));
         suite.addTest(new AdvancedCriteriaQueryTestSuite("testInCollectionPrimitives"));
         suite.addTest(new AdvancedCriteriaQueryTestSuite("testInParameterCollection"));
+        suite.addTest(new AdvancedCriteriaQueryTestSuite("testInParameterCollection2"));
         suite.addTest(new AdvancedCriteriaQueryTestSuite("testProd"));
         suite.addTest(new AdvancedCriteriaQueryTestSuite("testSize"));
         suite.addTest(new AdvancedCriteriaQueryTestSuite("testJoinDistinct"));
@@ -439,6 +443,28 @@ public class AdvancedCriteriaQueryTestSuite extends JUnitTestCase {
             closeEntityManagerAndTransaction(em);
         }
     }
+
+    /*
+     * bug 349477 - Using criteria.in(...) with ParameterExpression of type Collection creates invalid SQL
+     */
+    public void testInParameterCollection2(){
+        EntityManager em = createEntityManager();
+        beginTransaction(em);
+        List<String> response = new Vector<>();
+        response.add("NoResults");
+        response.add("Bug fixes");
+        try {
+            CriteriaBuilder qbuilder = em.getCriteriaBuilder();
+            CriteriaQuery<Employee> cquery = qbuilder.createQuery(Employee.class);
+            Root<Employee> emp = cquery.from(Employee.class);
+            cquery.where(emp.join("responsibilities").in(qbuilder.parameter(java.util.Collection.class, "param")));
+            List<Employee> result = em.createQuery(cquery).setParameter("param", response).getResultList();
+            assertFalse("testInParameterCollection failed: No Employees were returned", result.isEmpty());
+        } finally {
+            closeEntityManagerAndTransaction(em);
+        }
+    }
+
     public void testInlineInParameter(){
         EntityManager em = createEntityManager();
         beginTransaction(em);
