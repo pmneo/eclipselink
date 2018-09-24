@@ -331,7 +331,11 @@ public class XMLReader implements org.xml.sax.XMLReader {
     private boolean hasAttributes(Attributes attributes) {
         QName nilAttrName = new QName(javax.xml.XMLConstants.W3C_XML_SCHEMA_INSTANCE_NS_URI, Constants.SCHEMA_NIL_ATTRIBUTE);
         for (int i = 0; i < attributes.getLength(); i++) {
-            if (!(nilAttrName.getNamespaceURI().equals(attributes.getURI(i)) &&
+        	//ignore xmlns attributes
+        	if( javax.xml.XMLConstants.XMLNS_ATTRIBUTE_NS_URI.equals( attributes.getURI( i ) ) ) {
+            	continue;
+            }
+			else if (!(nilAttrName.getNamespaceURI().equals(attributes.getURI(i)) &&
                     nilAttrName.getLocalPart().equals(attributes.getLocalName(i)))) {
                 return true;
             }
