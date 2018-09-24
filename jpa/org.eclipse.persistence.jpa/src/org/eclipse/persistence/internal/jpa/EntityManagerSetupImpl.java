@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2017 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2018 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -72,10 +72,10 @@
  *       - 480787 : Wrap several privileged method calls with a doPrivileged block
  *     12/03/2015-2.6 Dalia Abo Sheasha
  *       - 483582: Add the javax.persistence.sharedCache.mode property
- *     09/29/2016-2.7 Tomas Kraus
- *       - 426852: @GeneratedValue(strategy=GenerationType.IDENTITY) support in Oracle 12c
  *     09/14/2017-2.6 Will Dazey
  *       - 522312: Add the eclipselink.sequencing.start-sequence-at-nextval property
+ *     01/16/2018-2.7 Joe Grassel
+ *       - 529907: EntityManagerSetupImpl.addBeanValidationListeners() should fall back on old method for finding helperClass
  *****************************************************************************/
 package org.eclipse.persistence.internal.jpa;
 
@@ -223,6 +223,7 @@ import org.eclipse.persistence.internal.jpa.weaving.ClassDetails;
 import org.eclipse.persistence.internal.jpa.weaving.PersistenceWeaver;
 import org.eclipse.persistence.internal.jpa.weaving.TransformerFactory;
 import org.eclipse.persistence.internal.localization.ExceptionLocalization;
+import org.eclipse.persistence.internal.localization.LoggingLocalization;
 import org.eclipse.persistence.internal.security.PrivilegedAccessHelper;
 import org.eclipse.persistence.internal.security.PrivilegedClassForName;
 import org.eclipse.persistence.internal.security.PrivilegedGetDeclaredField;
@@ -806,8 +807,6 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
                             writeDDL(deployProperties, getDatabaseSession(deployProperties), classLoaderToUse);
                         }
                     }
-                    // Initialize platform specific identity sequences.
-                    session.getDatasourcePlatform().initIdentitySequences(getDatabaseSession(), MetadataProject.DEFAULT_IDENTITY_GENERATOR);
                     updateTunerPostDeploy(deployProperties, classLoaderToUse);
                     this.deployLock.release();
                     isLockAcquired = false;
@@ -1683,14 +1682,17 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
      */
     public synchronized ClassTransformer predeploy(PersistenceUnitInfo info, Map extendedProperties) {
         ClassLoader classLoaderToUse = null;
+        // session == null
         if (state == STATE_DEPLOY_FAILED || state == STATE_UNDEPLOYED) {
             throw new PersistenceException(EntityManagerSetupException.cannotPredeploy(persistenceUnitInfo.getPersistenceUnitName(), state, persistenceException));
         }
+        // session != null
         if (state == STATE_PREDEPLOYED || state == STATE_DEPLOYED || state == STATE_HALF_DEPLOYED) {
             session.log(SessionLog.FINEST, SessionLog.JPA, "predeploy_begin", new Object[]{getPersistenceUnitInfo().getPersistenceUnitName(), session.getName(), state, factoryCount});
             factoryCount++;
             session.log(SessionLog.FINEST, SessionLog.JPA, "predeploy_end", new Object[]{getPersistenceUnitInfo().getPersistenceUnitName(), session.getName(), state, factoryCount});
             return null;
+        // session == null
         } else if (state == STATE_INITIAL) {
             persistenceUnitInfo = info;
             if (!isCompositeMember()) {
@@ -1703,11 +1705,9 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
                     }
                 }
             }
-        } else if (state == STATE_HALF_PREDEPLOYED_COMPOSITE_MEMBER) {
-            session.log(SessionLog.FINEST, SessionLog.JPA, "predeploy_begin", new Object[]{getPersistenceUnitInfo().getPersistenceUnitName(), session.getName(), state + " " + mode, factoryCount});
         }
 
-        // state is INITIAL or PREDEPLOY_FAILED or STATE_HALF_PREDEPLOYED_COMPOSITE_MEMBER
+        // state is INITIAL or PREDEPLOY_FAILED or STATE_HALF_PREDEPLOYED_COMPOSITE_MEMBER, session == null
         try {
             // properties not used in STATE_HALF_PREDEPLOYED_COMPOSITE_MEMBER
             Map predeployProperties = null;
@@ -1976,7 +1976,7 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
                         //bug:299926 - Case insensitive table / column matching with native SQL queries
                         EntityManagerSetupImpl.updateCaseSensitivitySettings(predeployProperties, processor.getProject(), session);
                     }
-                    
+
                     // Set the shared cache mode to the javax.persistence.sharedCache.mode property value.
                     updateSharedCacheMode(predeployProperties);
 
@@ -2071,7 +2071,22 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
             state = STATE_PREDEPLOY_FAILED;
             // cache this.persistenceException before slow logging
             PersistenceException persistenceEx = createPredeployFailedPersistenceException(ex);
-            session.log(SessionLog.FINEST, SessionLog.JPA, "predeploy_end", new Object[]{getPersistenceUnitInfo().getPersistenceUnitName(), session.getName(), state, factoryCount});
+            // If session exists, use it for logging
+            if (session != null) {
+                session.log(SessionLog.FINEST, SessionLog.JPA, "predeploy_end", new Object[]{getPersistenceUnitInfo().getPersistenceUnitName(), session.getName(), state, factoryCount});
+            // If at least staticWeaveInfo exists, use it for logging
+            } else if (staticWeaveInfo != null && staticWeaveInfo.getLogLevel() <= SessionLog.FINEST) {
+                Writer logWriter = staticWeaveInfo.getLogWriter();
+                if (logWriter != null) {
+                    String message = LoggingLocalization.buildMessage("predeploy_end", new Object[]{getPersistenceUnitInfo().getPersistenceUnitName(), "N/A", state, factoryCount});
+                    try {
+                        logWriter.write(message);
+                        logWriter.write(Helper.cr());
+                    } catch (IOException ioex) {
+                        // Ignore IOException
+                    }
+                }
+            }
             session = null;
             mode = null;
             throw persistenceEx;
@@ -3631,10 +3646,24 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
             Class helperClass;
             try {
                 if (PrivilegedAccessHelper.shouldUsePrivilegedAccess()) {
-                    helperClass = AccessController.doPrivileged(
+                    try {
+                        helperClass = AccessController.doPrivileged(
                             new PrivilegedClassForName(helperClassName, true, appClassLoader));
+                    } catch (Throwable t) {
+                        // Try the ClassLoader that loaded Eclipselink classes
+                        ClassLoader eclipseLinkClassLoader = EntityManagerSetupImpl.class.getClassLoader();
+                        helperClass = AccessController.doPrivileged(
+                                new PrivilegedClassForName(helperClassName, true, eclipseLinkClassLoader));
+                    }
                 } else {
-                    helperClass = PrivilegedAccessHelper.getClassForName(helperClassName, true, appClassLoader);
+                    try {
+                        helperClass = PrivilegedAccessHelper.getClassForName(helperClassName, true, appClassLoader);
+                    } catch (Throwable t) {
+                        // Try the ClassLoader that loaded Eclipselink classes
+                        ClassLoader eclipseLinkClassLoader = EntityManagerSetupImpl.class.getClassLoader();
+                        helperClass = PrivilegedAccessHelper.getClassForName(helperClassName, true, eclipseLinkClassLoader);
+                    }
+
                 }
                 BeanValidationInitializationHelper beanValidationInitializationHelper = (BeanValidationInitializationHelper)helperClass.newInstance();
                 beanValidationInitializationHelper.bootstrapBeanValidation(puProperties, session, appClassLoader);

@@ -90,7 +90,6 @@
     <property name="javax.validation.lib" value="${moxytest.2.common.plugins.dir}/${javax.validation.jar}"/>
     <property name="validation-impl.lib" value="${extensions.depend.dir}/${validation-impl.jar}"/>
     <property name="jboss-logging.lib" value="${extensions.depend.dir}/${jboss-logging.jar}"/>
-    <property name="javax.el-api.lib" value="${extensions.depend.dir}/${javax.el-api.jar}"/>
     <property name="javax.el.lib" value="${extensions.depend.dir}/${javax.el.jar}"/>
     <property name="classmate.lib" value="${extensions.depend.dir}/${classmate.jar}"/>
     <property name="jmockit.lib" value="${extensions.depend.dir}/${jmockit.jar}"/>
@@ -100,11 +99,14 @@
         <and>
             <available file="${extensions.depend.dir}/${validation-impl.jar}"/>
             <available file="${extensions.depend.dir}/${jboss-logging.jar}"/>
-            <available file="${extensions.depend.dir}/${javax.el-api.jar}"/>
             <available file="${extensions.depend.dir}/${javax.el.jar}"/>
             <available file="${extensions.depend.dir}/${classmate.jar}"/>
         </and>
     </condition>
+
+    <!-- JVM used to run tests -->
+    <property name="test.junit.jvm" value="${env.JAVA_HOME}"/>
+    <property name="test.junit.jvm.exec" value="${test.junit.jvm}/bin/java"/>
 
     <path id="xml.parser.path">
         <fileset
@@ -154,7 +156,6 @@
         <pathelement path="${junit.lib}"/>
         <pathelement path="${validation-impl.lib}"/>
         <pathelement path="${jboss-logging.lib}"/>
-        <pathelement path="${javax.el-api.lib}"/>
         <pathelement path="${javax.el.lib}"/>
         <pathelement path="${classmate.lib}"/>
         <pathelement path="${javax.validation.lib}"/>
@@ -226,7 +227,6 @@
         <pathelement path="${javax.validation.lib}"/>
         <pathelement path="${validation-impl.lib}"/>
         <pathelement path="${jboss-logging.lib}"/>
-        <pathelement path="${javax.el-api.lib}"/>
         <pathelement path="${javax.el.lib}"/>
         <pathelement path="${classmate.lib}"/>
     </path>
@@ -353,12 +353,13 @@
         <echo message="    -Dclassworlds.conf=${M2_HOME}/bin/m2.conf"/>
         <echo message="    -Dmaven.home=${M2_HOME}"/>
         <echo message="    -Dbuild.qualifier=${version.qualifier}"/>
-        <java dir="${basedir}" fork="true" failonerror="true" classname="org.codehaus.plexus.classworlds.launcher.Launcher">
+        <echo message="    -Drelease.version=${release.version}"/>
+        <java jvm="${test.junit.jvm.exec}" dir="${basedir}" fork="true" failonerror="true" classname="org.codehaus.plexus.classworlds.launcher.Launcher">
             <jvmarg value="-Dclassworlds.conf=${M2_HOME}/bin/m2.conf"/>
             <jvmarg value="-Dmaven.home=${M2_HOME}"/>
             <jvmarg value="-Dmaven.multiModuleProjectDirectory=${basedir}"/>
             <!--<arg line="-Dmaven.surefire.debug clean install"/>-->
-            <arg line="clean install"/>
+            <arg line="clean test"/>
             <arg line="-Dmoxytest.2.common.plugins.dir=${basedir}/../../plugins/"/>
             <arg line="-Djavax.validation.lib=${basedir}/${javax.validation.lib}"/>
             <arg line="-Dbuild.qualifier=${version.qualifier}"/>
@@ -366,6 +367,7 @@
             <arg line="-Djaxb-api.jar=${jaxb-api.jar}"/>
             <arg line="-Djaxrs.jar=${jaxrs.jar}"/>
             <arg line="-Dasm.jar=${asm.jar}"/>
+            <arg line="-Dtest.junit.jvm=${test.junit.jvm}"/>
             <classpath>
                 <fileset dir="${M2_HOME}/boot">
                     <include name="plexus-classworlds-*.jar"/>
@@ -384,7 +386,7 @@
         <delete dir="${report.dir}/installer" failonerror="false"/>
         <mkdir dir="${report.dir}/installer"/>
         <mkdir dir="${build.dir}/${test.dir}"/>
-        <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+        <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
             <env key="ECLIPSELINK_UNZIP_DIR" value="${unzip.temp.file}"/>
             <batchtest todir="${report.dir}/installer">
                 <fileset dir="${src.dir}">
@@ -497,7 +499,7 @@
             <mkdir dir="${build.dir}/${test.dir}/${tmp.dir}"/>
             <!-- Can be set e.g. in test.properties to add VM options for a particular platform/driver  -->
             <property name="additional.jvmargs" value="-Ddummy2=dummy"/>
-            <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+            <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
                 <!--<jvmarg value="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"/>-->
                 <jvmarg value="-ea"/>
                 <jvmarg value="-javaagent:${jmockit.lib}"/>
@@ -562,7 +564,7 @@
             <mkdir dir="${build.dir}/${test.dir}/${tmp.dir}"/>
             <!-- Can be set e.g. in test.properties to add VM options for a particular platform/driver  -->
             <property name="additional.jvmargs" value="-Ddummy2=dummy"/>
-            <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+            <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
                 <jvmarg value="-ea"/>
                 <jvmarg line="${additional.jvmargs}"/>
                 <env key="T_WORK" value="${tmp.dir}"/>
@@ -590,7 +592,7 @@
             <delete dir="${report.dir}/srg/oxm" failonerror="false"/>
             <mkdir dir="${report.dir}/srg/oxm/default"/>
             <mkdir dir="${build.dir}/${test.dir}"/>
-            <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+            <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
                 <sysproperty key="useLogging" value="false"/>
                 <sysproperty key="eclipselink.xml.platform" value="${xml.platform}"/>
                 <sysproperty key="parser" value="${parser}"/>
@@ -613,8 +615,9 @@
             <delete dir="${report.dir}/oxm/default" failonerror="false"/>
             <mkdir dir="${report.dir}/oxm/default"/>
             <mkdir dir="${build.dir}/${test.dir}"/>
-            <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+            <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
                 <jvmarg value="-ea"/>
+                <jvmarg line="${additional.jvmargs}"/>
                 <sysproperty key="useLogging" value="false"/>
                 <sysproperty key="eclipselink.xml.platform" value="${xml.platform}"/>
                 <sysproperty key="parser" value="${parser}"/>
@@ -659,8 +662,9 @@
             <delete dir="${report.dir}/oxm/dom" failonerror="false"/>
             <mkdir dir="${report.dir}/oxm/dom"/>
             <mkdir dir="${build.dir}/${test.dir}"/>
-            <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+            <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
                 <jvmarg value="-ea"/>
+                <jvmarg line="${additional.jvmargs}"/>
                 <sysproperty key="platformType" value="DOM"/>
                 <sysproperty key="metadataType" value="JAVA"/>
                 <sysproperty key="useLogging" value="false"/>
@@ -707,8 +711,9 @@
             <delete dir="${report.dir}/oxm/deploymentxml" failonerror="false"/>
             <mkdir dir="${report.dir}/oxm/deploymentxml"/>
             <mkdir dir="${build.dir}/${test.dir}"/>
-            <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+            <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
                 <jvmarg value="-ea"/>
+                <jvmarg line="${additional.jvmargs}"/>
                 <sysproperty key="platformType" value="DOM"/>
                 <sysproperty key="metadataType" value="XML_ECLIPSELINK"/>
                 <sysproperty key="useLogging" value="false"/>
@@ -773,8 +778,9 @@
             <delete dir="${report.dir}/oxm/deploymentxml-tl" failonerror="false"/>
             <mkdir dir="${report.dir}/oxm/deploymentxml-tl"/>
             <mkdir dir="${build.dir}/${test.dir}"/>
-            <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+            <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
                 <jvmarg value="-ea"/>
+                <jvmarg line="${additional.jvmargs}"/>
                 <sysproperty key="platformType" value="DOM"/>
                 <sysproperty key="metadataType" value="XML_TOPLINK"/>
                 <sysproperty key="useLogging" value="false"/>
@@ -835,8 +841,9 @@
             <delete dir="${report.dir}/oxm/docpres" failonerror="false"/>
             <mkdir dir="${report.dir}/oxm/docpres"/>
             <mkdir dir="${build.dir}/${test.dir}"/>
-            <junit printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
+            <junit jvm="${test.junit.jvm.exec}" printsummary="yes" fork="true" dir="${build.dir}/${test.dir}" tempdir="${build.dir}/${test.dir}" showoutput="yes" maxmemory="512m">
                 <jvmarg value="-ea"/>
+                <jvmarg line="${additional.jvmargs}"/>
                 <sysproperty key="platformType" value="DOC_PRES"/>
                 <sysproperty key="metadataType" value="JAVA"/>
                 <sysproperty key="useLogging" value="false"/>

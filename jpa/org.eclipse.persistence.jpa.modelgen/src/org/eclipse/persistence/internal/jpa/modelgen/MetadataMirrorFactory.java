@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -20,6 +20,8 @@
  *       - 337323: Multi-tenant with shared schema support (part 2)
  *     09/20/2011-2.3.1 Guy Pelletier
  *       - 357476: Change caching default to ISOLATED for multitenant's using a shared EMF.
+ *     02/17/2018-2.7.2 Lukas Jungmann
+ *       - 531305: Canonical model generator fails to run on JDK9
  ******************************************************************************/
 package org.eclipse.persistence.internal.jpa.modelgen;
 
@@ -31,7 +33,9 @@ import java.util.Map;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeMirror;
@@ -41,12 +45,12 @@ import org.eclipse.persistence.internal.jpa.deployment.SEPersistenceUnitInfo;
 import org.eclipse.persistence.internal.jpa.metadata.MetadataDescriptor;
 import org.eclipse.persistence.internal.jpa.metadata.MetadataLogger;
 import org.eclipse.persistence.internal.jpa.metadata.MetadataProject;
-import org.eclipse.persistence.internal.jpa.metadata.accessors.objects.MetadataFactory;
 import org.eclipse.persistence.internal.jpa.metadata.accessors.objects.MetadataClass;
-import org.eclipse.persistence.internal.jpa.modelgen.MetadataMirrorFactory;
+import org.eclipse.persistence.internal.jpa.metadata.accessors.objects.MetadataFactory;
 import org.eclipse.persistence.internal.jpa.modelgen.objects.PersistenceUnit;
 import org.eclipse.persistence.internal.jpa.modelgen.visitors.ElementVisitor;
-import org.eclipse.persistence.logging.SessionLog;
+import org.eclipse.persistence.logging.LogCategory;
+import org.eclipse.persistence.logging.LogLevel;
 import org.eclipse.persistence.sessions.DatabaseLogin;
 import org.eclipse.persistence.sessions.Project;
 import org.eclipse.persistence.sessions.server.ServerSession;
@@ -77,6 +81,9 @@ public class MetadataMirrorFactory extends MetadataFactory {
 
     private ProcessingEnvironment processingEnv;
 
+    /** Current logger context from command line options. */
+    private final LoggerContext loggerContext;
+
     /**
      * INTERNAL:
      * The factory is kept as a static object to the persistence unit. The first
@@ -86,12 +93,13 @@ public class MetadataMirrorFactory extends MetadataFactory {
      * classes and may not be able to rebuild till individual elements are
      * 'touched' or if the project is rebuilt as a whole.
      */
-    protected MetadataMirrorFactory(MetadataLogger logger, ClassLoader loader) {
+    protected MetadataMirrorFactory(final MetadataLogger logger, final LoggerContext loggerContext, final ClassLoader loader) {
         super(logger, loader);
-        roundElements = new HashMap<Element, MetadataClass>();
-        roundMetadataClasses = new HashSet<MetadataClass>();
-        persistenceUnits = new HashMap<String, PersistenceUnit>();
-        metadataProjects = new HashMap<String, MetadataProject>();
+        this.loggerContext = loggerContext;
+        roundElements = new HashMap<>();
+        roundMetadataClasses = new HashSet<>();
+        persistenceUnits = new HashMap<>();
+        metadataProjects = new HashMap<>();
     }
 
     /**
@@ -121,11 +129,10 @@ public class MetadataMirrorFactory extends MetadataFactory {
 
         if (metadataClass == null) {
             // Only log if logging on finest.
-            boolean shouldLog = getLogger().getSession().getLogLevel() == SessionLog.FINEST;
             // As a performance gain, avoid visiting this class if it is not a
             // round element. We must re-visit round elements.
             if (isRoundElement(element)) {
-                if (shouldLog) {
+                if (m_logger.shouldLog(LogLevel.FINE, LogCategory.PROCESSOR)) {
                     processingEnv.getMessager().printMessage(Kind.NOTE, "Building metadata class for round element: " + element);
                 }
                 metadataClass = new MetadataClass(MetadataMirrorFactory.this, "");
@@ -156,7 +163,7 @@ public class MetadataMirrorFactory extends MetadataFactory {
                 //    with only a name/type from the toString value.
                 if (element instanceof TypeElement || element instanceof TypeParameterElement) {
                     if (element instanceof TypeElement) {
-                        if (shouldLog) {
+                        if (m_logger.shouldLog(LogLevel.FINE, LogCategory.PROCESSOR)) {
                             processingEnv.getMessager().printMessage(Kind.NOTE, "Building metadata class for type element: " + name);
                         }
                         metadataClass = new MetadataClass(MetadataMirrorFactory.this, name);
@@ -167,7 +174,7 @@ public class MetadataMirrorFactory extends MetadataFactory {
                         // Only thing going to get through at this point are
                         // TypeParameterElements (presumably generic ones). Look
                         // at those further since they 'should' be simple visits.
-                        if (shouldLog) {
+                        if (m_logger.shouldLog(LogLevel.FINE, LogCategory.PROCESSOR)) {
                             processingEnv.getMessager().printMessage(Kind.NOTE, "Building type parameter element: " + name);
                         }
                         metadataClass = new MetadataClass(MetadataMirrorFactory.this, name);
@@ -287,6 +294,14 @@ public class MetadataMirrorFactory extends MetadataFactory {
 
     /**
      * INTERNAL:
+     * Get current logger context from command line options.
+     */
+    public LoggerContext getLoggerContext() {
+        return loggerContext;
+    }
+
+    /**
+     * INTERNAL:
      */
     @Override
     public void resolveGenericTypes(MetadataClass child, List<String> genericTypes, MetadataClass parent, MetadataDescriptor descriptor) {
@@ -324,7 +339,16 @@ public class MetadataMirrorFactory extends MetadataFactory {
                 // @MappedSuperclass or @Embeddable, since it may be a class
                 // defined solely in XML and we want to make sure we look at
                 // the changes for those classes as well.
-                if (element.getAnnotation(javax.annotation.Generated.class) == null) {
+                boolean isGenerated = false;
+                List<? extends AnnotationMirror> annotationMirrors = element.getAnnotationMirrors();
+                for (AnnotationMirror am : annotationMirrors) {
+                    Name qn = ((TypeElement) am.getAnnotationType().asElement()).getQualifiedName();
+                    if ("javax.annotation.Generated".equals(qn) || "javax.annotation.processing.Generated".equals(qn)) {
+                        isGenerated = true;
+                        break;
+                    }
+                }
+                if (!isGenerated) {
                     roundElements.put(element, null);
                 }
             }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 1998, 2016 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2018 Oracle and/or its affiliates, IBM Corporation. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -1416,7 +1416,7 @@ public class EntityManagerJUnitTestSuite extends JUnitTestCase {
     }
 
     public void testIdentityOutsideTransaction() {
-        EntityManager em = createEntityManager();
+        EntityManager em = getEntityManagerFactory().createEntityManager();
 
         Query query = em.createQuery("SELECT e FROM PhoneNumber e");
         List<PhoneNumber> phoneNumbers = query.getResultList();
@@ -4898,8 +4898,9 @@ public class EntityManagerJUnitTestSuite extends JUnitTestCase {
                 em2.getTransaction().commit();
             }catch (RuntimeException ex){
                 em2.getTransaction().rollback();
-                em2.close();
                 throw ex;
+            } finally {
+                em2.close();
             }
 
             commitTransaction(em);
@@ -4923,8 +4924,9 @@ public class EntityManagerJUnitTestSuite extends JUnitTestCase {
             if (isTransactionActive(em)){
                 rollbackTransaction(em);
             }
-            closeEntityManager(em);
             throw ex;
+        } finally {
+            closeEntityManager(em);
         }
 
         if (optimisticLockException == null){

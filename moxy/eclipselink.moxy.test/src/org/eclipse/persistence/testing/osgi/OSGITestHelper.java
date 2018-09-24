@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v1.0 and Eclipse Distribution License v. 1.0
  * which accompanies this distribution.
@@ -19,6 +19,10 @@ import static org.ops4j.pax.exam.CoreOptions.cleanCaches;
 import static org.ops4j.pax.exam.CoreOptions.junitBundles;
 import static org.ops4j.pax.exam.CoreOptions.mavenBundle;
 import static org.ops4j.pax.exam.CoreOptions.options;
+import static org.ops4j.pax.exam.CoreOptions.vmOptions;
+import static org.ops4j.pax.exam.CoreOptions.when;
+
+import org.eclipse.persistence.internal.helper.JavaSEPlatform;
 
 /**
  * Helper class with PAX options for different kind of OSGi tests.
@@ -34,10 +38,11 @@ public class OSGITestHelper {
     private static final String JAXB_API_JAR = System.getProperty("jaxb-api.jar", "javax.xml.bind_2.2.12.v201410011542.jar");
     private static final String JAXRS_JAR = System.getProperty("jaxrs.jar", "javax.ws.rs_1.1.1.v20101004-1200.jar");
     private static final String ASM_JAR = System.getProperty("asm.jar", "org.eclipse.persistence.asm_6.0.0.v201710052159.jar");
-    private static final String BEAN_VALIDATION_LIB = System.getProperty("javax.validation.lib", "javax.validation_1.1.0.v201304101302.jar");
+    private static final String BEAN_VALIDATION_LIB = System.getProperty("javax.validation.lib", "javax.validation.api_2.0.1.Final.jar");
 
     public static Option[] getDefaultOptions() {
         return options(
+                when(JavaSEPlatform.CURRENT.getMajor() >= 9).useOptions(vmOptions("--add-modules", "java.sql,java.xml.bind")),
                 // JAXB API
                 bundle("file:" + PLUGINS_DIR + JAXB_API_JAR),
 
@@ -55,12 +60,11 @@ public class OSGITestHelper {
 
     public static Option[] getOptionsWithBeanValidation() {
         return options(
-                mavenBundle().groupId("org.hibernate").artifactId("hibernate-validator").version("5.2.0.CR1"),
-                mavenBundle().groupId("com.fasterxml").artifactId("classmate").version("1.1.0"),
-                mavenBundle().groupId("javax.el").artifactId("javax.el-api").version("3.0.0"),
-                mavenBundle().groupId("org.jboss.logging").artifactId("jboss-logging").version("3.2.1.Final"),
-                mavenBundle().groupId("org.apache.logging.log4j").artifactId("log4j-api").version("2.3"),
-                mavenBundle().groupId("org.apache.logging.log4j").artifactId("log4j-core").version("2.3"),
+                when(JavaSEPlatform.CURRENT.getMajor() >= 9).useOptions(vmOptions("--add-modules", "java.sql,java.xml.bind")),
+                mavenBundle().groupId("org.hibernate.validator").artifactId("hibernate-validator").version("6.0.7.Final"),
+                mavenBundle().groupId("com.fasterxml").artifactId("classmate").version("1.3.1"),
+                mavenBundle().groupId("org.glassfish").artifactId("javax.el").version("3.0.1-b08"),
+                mavenBundle().groupId("org.jboss.logging").artifactId("jboss-logging").version("3.3.0.Final"),
 
                 // JAXB API
                 bundle("file:" + PLUGINS_DIR + JAXB_API_JAR),

@@ -17,23 +17,34 @@
     <property name="jse.classes.dir"        value="${basedir}/classes" />
     <!-- Use common property name to allow override -->
     <property name="reports.dir"            value="${basedir}/reports" />
+    <property name="jse.run.dir"            value="${basedir}/run" />
     
     <property name="jse.el.plugins.dir"     value="${jse.el.root}/plugins"/>
     <property name="jse.jpa.plugins.dir"    value="${jse.jpa.root}/plugins"/>
 
+    <property name="version.qualifier"     value="qualifier"/>
+    <property name="version.string"        value="${release.version}.${version.qualifier}"/>
+
     <!-- Not sure if there is a better way to refer to dependencies? -->
     <property name="jse.eclipselink.jar" value="${jse.el.root}/eclipselink.jar"/>
     <property name="javax.transaction" value="${jse.el.plugins.dir}/javax.transaction_1.1.0.v201002051055.jar"/>
-    <property name="javax.validation" value="${jse.el.plugins.dir}/javax.validation_1.1.0.v201304101302.jar"/>
+    <property name="javax.validation" value="${jse.el.plugins.dir}/javax.validation.api_2.0.1.Final.jar"/>
     <property name="javax.persistence" value="${jse.jpa.plugins.dir}/javax.persistence_2.2.0.v201708071007.jar"/>
-   
+    <property name="jse.modelgen.jar" value="${jse.el.plugins.dir}/org.eclipse.persistence.jpa.modelgen_${version.string}.jar"/>
+
+    <property environment="env" />
     <property file="${user.home}/build.properties"/>
     <property file="${test.properties}" />
     <property file="./antbuild.properties" />
     <property file="./test.properties" />
 
+    <!-- JVM used to run tests -->
+    <property name="test.junit.jvm" value="${env.JAVA_HOME}"/>
+    <property name="test.junit.jvm.exec" value="${test.junit.jvm}/bin/java"/>
+
     <path id="compile.jse.path">
-        <pathelement path="${jse.el.root}/eclipselink.jar" />
+        <pathelement path="${jse.eclipselink.jar}" />
+        <pathelement path="${jse.modelgen.jar}" />
         <pathelement path="${javax.transaction}" />
         <pathelement path="${javax.validation}" />
         <pathelement path="${javax.persistence}" />
@@ -42,6 +53,7 @@
     <path id="run.jse.path">
         <pathelement path="${jse.classes.dir}" />
         <pathelement path="${jse.eclipselink.jar}" />
+        <pathelement path="${jse.modelgen.jar}" />
         <pathelement path="${javax.transaction}" />
         <pathelement path="${javax.validation}" />
         <pathelement path="${javax.persistence}" />
@@ -69,17 +81,19 @@
     
     <target name="test-run" depends="compile, weave">
         <mkdir dir="${reports.dir}"/>
+        <mkdir dir="${jse.run.dir}"/>
         <property name="rmi.port" value="1099"/>
         <property name="additional.jvmargs" value="-Ddummy2=dummy"/>
         <property name="debugargs" value="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=7777"/>
         <property name="rmi" value="-Djava.naming.provider.url=rmi://localhost:${rmi.port} -Djava.naming.factory.initial=com.sun.jndi.rmi.registry.RegistryContextFactory"/>
-        <junit printsummary="on" haltonfailure="false" failureproperty="fail" fork="yes" dir="${jse.classes.dir}" forkmode="once">
+        <junit jvm="${test.junit.jvm.exec}" printsummary="on" haltonfailure="false" failureproperty="fail" fork="yes" dir="${jse.classes.dir}" forkmode="once">
             <jvmarg line="${additional.jvmargs} ${rmi}"/>
             <sysproperty key="javax.persistence.jdbc.url" value="${db.url}"/>
             <sysproperty key="javax.persistence.jdbc.driver" value="${db.driver}"/>
             <sysproperty key="javax.persistence.jdbc.user" value="${db.user}"/>
             <sysproperty key="javax.persistence.jdbc.password" value="${db.pwd}"/>
             <sysproperty key="rmi.port" value="${rmi.port}"/>
+            <sysproperty key="run.dir" value="${jse.run.dir}"/>
             <classpath>
                 <path refid="run.jse.path" />
             </classpath>
@@ -125,12 +139,14 @@
         </copy>
 
         <javac debug="true" destdir="${jse.classes.dir}" includeantruntime="false" source="${javac.version}" target="${javac.version}">
+            <compilerarg value="-proc:none"/>
             <classpath refid="compile.jse.path"/>
             <src path="src"/>
         </javac>
     </target>
     <target name="clean">
         <delete dir="${jse.classes.dir}" />
+        <delete dir="${jse.run.dir}" />
         <delete dir="${reports.dir}" />
     </target>
 
