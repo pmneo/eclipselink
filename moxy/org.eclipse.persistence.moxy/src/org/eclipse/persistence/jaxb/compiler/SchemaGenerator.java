@@ -1562,7 +1562,8 @@ public class SchemaGenerator {
                 addSelfProperties(aJavaClass.getSuperclass(), superInfo, compositor, type);
             }
         }
-        addToSchemaType(info, info.getPropertyList(), compositor, type, info.getSchema());
+        if( info != null )
+        	addToSchemaType(info, info.getPropertyList(), compositor, type, info.getSchema());
     }
 
     /**

@@ -71,7 +71,7 @@ public class HistoryPolicy implements Cloneable, Serializable {
     public Expression additionalHistoryExpression(Expression context, Expression base, Integer tableIndex) {
         //
         AsOfClause clause = base.getAsOfClause();
-        Object value = clause.getValue();
+        Object value = clause == null ? null : clause.getValue();
         Expression join = null;
         Expression subJoin = null;
         Expression start = null;

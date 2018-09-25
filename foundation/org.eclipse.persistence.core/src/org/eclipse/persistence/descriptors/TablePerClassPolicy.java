@@ -37,6 +37,7 @@ public class TablePerClassPolicy extends InterfacePolicy {
     /**
      * INTERNAL:
      */
+    @Override
     public boolean isTablePerClassPolicy() {
         return true;
     }
@@ -47,8 +48,10 @@ public class TablePerClassPolicy extends InterfacePolicy {
      */
     @Override
     protected Object selectAllObjects(ReadAllQuery query) {
-        if (this.descriptor.isAbstract()) {
-            return query.getContainerPolicy().containerInstance();
+        if (this.descriptor.isAbstract())
+        {
+            if( this.descriptor.getInheritancePolicyOrNull() == null && this.descriptor.getInterfacePolicyOrNull() == null )
+            	return query.getContainerPolicy().containerInstance();
         }
         return super.selectAllObjects(query);
     }

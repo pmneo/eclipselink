@@ -1958,6 +1958,12 @@ public class Helper extends CoreHelper implements Serializable {
         if ((timePortion.indexOf('-') == -1) && (timePortion.indexOf('/') == -1) && (timePortion.indexOf('.') == -1) && (timePortion.indexOf(':') == -1)) {
             throw ConversionException.incorrectTimeFormat(timePortion);
         }
+        
+        final int ppos = timePortion.indexOf( '+' );
+        
+        if( ppos > 0 )
+        	timePortion = timePortion.substring( 0, ppos );
+        
         StringTokenizer timeStringTokenizer = new StringTokenizer(timePortion, " /:.-");
 
         try {

@@ -262,12 +262,23 @@ public final class AnnotationsProcessor {
     private boolean hasXmlBindings = false;
     private boolean facets;
 
+    private boolean allowWrapperAnyWhere = false;
+    
     public AnnotationsProcessor(Helper helper) {
         this.helper = helper;
         this.facets = helper.isFacets();
         isDefaultNamespaceAllowed = true;
         hasSwaRef = false;
+        
+        allowWrapperAnyWhere = Boolean.getBoolean( "jaxb.allowWrapperAnyWhere" );
     }
+    
+    public void setAllowWrapperAnyWhere(boolean allowWrapperAnyWhere) {
+		this.allowWrapperAnyWhere = allowWrapperAnyWhere;
+	}
+    public boolean isAllowWrapperAnyWhere() {
+		return allowWrapperAnyWhere;
+	}
 
     /**
      * This event is called when annotation processing is completed,
@@ -1062,7 +1073,9 @@ public final class AnnotationsProcessor {
                 // an XmlElementWrapper can only appear on a Collection or Array
                 if (property.getXmlElementWrapper() != null) {
                     if (!helper.isCollectionType(property.getType()) && !property.getType().isArray() && !helper.isMapType(property.getType())) {
-                        throw JAXBException.invalidElementWrapper(property.getPropertyName());
+                    	
+                    	if( allowWrapperAnyWhere == false )
+                    		throw JAXBException.invalidElementWrapper(property.getPropertyName());
                     }
                 }
 

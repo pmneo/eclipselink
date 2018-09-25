@@ -217,6 +217,16 @@ public class ManyToManyMapping extends CollectionMapping implements RelationalMa
     protected Object extractBatchKeyFromRow(AbstractRecord row, AbstractSession session) {
         return this.mechanism.extractBatchKeyFromRow(row, session);
     }
+    
+    /**
+     * INTERNAL:
+     * Extract the primary key value from the source row.
+     * Used for batch reading, most following same order and fields as in the mapping.
+     */
+    @Override
+    protected Object[] extractBatchKeysFromRow(AbstractRecord row, AbstractSession session) {
+        return extractBatchKeysFromRow( row, session, this.mechanism.sourceKeyFields );
+    }
 
     /**
      * INTERNAL:

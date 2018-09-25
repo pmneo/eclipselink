@@ -63,8 +63,8 @@ public class XMLReader implements org.xml.sax.XMLReader {
     private boolean supportsLexicalHandler;
     private LexicalHandlerWrapper lexicalHandlerWrapper;
     protected ValidatingContentHandler validatingContentHandler;
-    private boolean namespaceAware;
-    private char namespaceSeparator;
+    protected boolean namespaceAware;
+    protected char namespaceSeparator;
     protected Locator locator;
 
     public XMLReader(org.xml.sax.XMLReader internalReader) {

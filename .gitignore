@@ -42,3 +42,6 @@ test_*.properties
 /coverage-report/
 /jacoco.out
 jsonb/.gradle
+/build.bat
+/set_env.bat
+

@@ -17,9 +17,12 @@ package org.eclipse.persistence.internal.databaseaccess;
 import java.io.StringWriter;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
+import org.eclipse.persistence.mappings.CollectionMapping;
 import org.eclipse.persistence.descriptors.DescriptorQueryManager;
 import org.eclipse.persistence.exceptions.DatabaseException;
 import org.eclipse.persistence.exceptions.OptimisticLockException;
@@ -27,6 +30,8 @@ import org.eclipse.persistence.internal.sessions.AbstractSession;
 import org.eclipse.persistence.logging.SessionLog;
 import org.eclipse.persistence.queries.ModifyQuery;
 import org.eclipse.persistence.sessions.SessionProfiler;
+import org.eclipse.persistence.queries.UpdateObjectQuery;
+import org.eclipse.persistence.exceptions.i18n.ExceptionMessageGenerator;
 
 /**
  * INTERNAL:
@@ -42,7 +47,7 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
      * by this mechanism.  If the current string and previous string match then simply
      * bind in the arguments, otherwise end previous batch and start a new batch
      */
-    protected DatabaseCall previousCall;
+    protected Deque< DatabaseCall > previousCalls = new ArrayDeque< DatabaseCall >();
 
     /**
      * This variable contains a list of the parameters list passed into the query
@@ -74,15 +79,18 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
         if (dbCall.hasParameters()) {
             //make an equality check on the String, because if we are caching statements then
             //we will not have to perform the string comparison multiple times.
-            if (this.previousCall == null) {
-                this.previousCall = dbCall;
+            if (this.previousCalls.size() == 0) 
+            {
+                this.previousCalls.push( dbCall );
                 this.parameters.add(dbCall.getParameters());
             } else {
-                if (this.previousCall.getSQLString().equals(dbCall.getSQLString()) && (this.parameters.size() < this.maxBatchSize)) {
+                if (this.previousCalls.peekLast().getSQLString().equals(dbCall.getSQLString()) && (this.parameters.size() < this.maxBatchSize)) {
+                    this.previousCalls.push( dbCall );
                     this.parameters.add(dbCall.getParameters());
                 } else {
                     executeBatchedStatements(session);
-                    this.previousCall = dbCall;
+                    this.previousCalls.clear();
+                    this.previousCalls.push( dbCall );
                     this.parameters.add(dbCall.getParameters());
                 }
             }
@@ -108,7 +116,7 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
      * This is used in the case of rollback.
      */
     public void clear() {
-        this.previousCall = null;
+        this.previousCalls = new ArrayDeque<DatabaseCall>();
         //Bug#419326 : A clone may be holding a reference to this.parameters.
         //So, instead of clearing the parameters, just initialize with a new reference.
         this.parameters = new ArrayList();
@@ -148,10 +156,18 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
         if (this.parameters.size() == 1) {
             // If only one call, just execute normally.
             try {
-                int rowCount = (Integer)this.databaseAccessor.basicExecuteCall(this.previousCall, null, session, false);
-                if (this.previousCall.hasOptimisticLock()) {
+                int rowCount = ((Integer)this.databaseAccessor.basicExecuteCall(this.previousCalls.peekLast(), null, session, false)).intValue();          
+                if (this.previousCalls.peekLast().hasOptimisticLock()) {
                     if (rowCount != 1) {
-                        throw OptimisticLockException.batchStatementExecutionFailure();
+                        if( this.previousCalls.peekLast().getQuery() instanceof UpdateObjectQuery )
+                        {
+                            UpdateObjectQuery uoq = (UpdateObjectQuery) this.previousCalls.peekLast().getQuery();
+                            throw OptimisticLockException.objectChangedSinceLastReadWhenUpdating( uoq.getObject(), uoq );
+                        }
+                        else
+                        {
+                        	throw OptimisticLockException.batchStatementExecutionFailure();
+                        }
                     }
                 }
             } finally {
@@ -165,7 +181,7 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
 
             if (session.shouldLog(SessionLog.FINE, SessionLog.SQL)) {
                 session.log(SessionLog.FINER, SessionLog.SQL, "begin_batch_statements", null, this.databaseAccessor);
-                session.log(SessionLog.FINE, SessionLog.SQL, this.previousCall.getSQLString(), null, this.databaseAccessor, false);
+                session.log(SessionLog.FINE, SessionLog.SQL, this.previousCalls.peekLast().getSQLString(), null, this.databaseAccessor, false);
                 // took this logging part from SQLCall
                 for (List callParameters : this.parameters) {
                     StringWriter writer = new StringWriter();
@@ -181,8 +197,8 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
             this.executionCount += this.databaseAccessor.executeJDK12BatchStatement(statement, this.lastCallAppended, session, true);
             this.databaseAccessor.writeStatementsCount++;
 
-            if (this.previousCall.hasOptimisticLock() && (this.executionCount != this.statementCount)) {
-                throw OptimisticLockException.batchStatementExecutionFailure();
+            if (this.previousCalls.peekLast().hasOptimisticLock() && (this.executionCount != this.statementCount)) {
+                throw objectsChangedSinceLastReadWhenUpdating();
             }
         } finally {
             // Reset the batched sql string
@@ -191,6 +207,54 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
         }
     }
 
+    protected static final String CR = System.getProperty("line.separator");
+    
+    public static class BatchOptimisticLockException extends OptimisticLockException
+    {
+        private static final long serialVersionUID = 1L;
+
+        public BatchOptimisticLockException( String message )
+        {
+            super( message );
+        }
+    }
+    
+    public OptimisticLockException objectsChangedSinceLastReadWhenUpdating() 
+    {
+        String className = null;
+        String keys = null;
+        
+        for ( DatabaseCall call : this.previousCalls )
+        {
+            if( call.getQuery() instanceof UpdateObjectQuery )
+            {
+                UpdateObjectQuery uoq = (UpdateObjectQuery) call.getQuery();
+                
+                if( className == null && uoq.getObject() != null )
+                    className = uoq.getObject().getClass().getName();
+                
+                if( uoq.getSession() != null )
+                {
+                    String key = String.valueOf( uoq.getSession().getId( uoq.getObject() ) );
+                    
+                    if( keys == null )
+                        keys = key;
+                    else
+                        keys += ", " + key;
+                }
+            }
+        }
+        
+        if( keys == null )
+            return OptimisticLockException.batchStatementExecutionFailure();
+        
+        Object[] args = { className, className, keys, CR };
+
+        OptimisticLockException optimisticLockException = new BatchOptimisticLockException(ExceptionMessageGenerator.buildMessage( OptimisticLockException.class, OptimisticLockException.OBJECT_CHANGED_SINCE_LAST_READ_WHEN_UPDATING, args) );
+        optimisticLockException.setErrorCode(OptimisticLockException.OBJECT_CHANGED_SINCE_LAST_READ_WHEN_UPDATING);
+        return optimisticLockException;
+    }
+    
     /**
      * INTERNAL:
      * Swaps out the Mechanism for the other Mechanism
@@ -211,7 +275,7 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
             try {
                 DatabasePlatform platform = session.getPlatform();
                 boolean shouldUnwrapConnection = platform.usesNativeBatchWriting();
-                statement = (PreparedStatement)this.databaseAccessor.prepareStatement(this.previousCall, session, shouldUnwrapConnection);
+                statement = (PreparedStatement)this.databaseAccessor.prepareStatement(this.previousCalls.peekLast(), session, shouldUnwrapConnection);
                 // Perform platform specific preparations
                 platform.prepareBatchStatement(statement, this.maxBatchSize);
                    if (this.queryTimeoutCache > DescriptorQueryManager.NoTimeout) {
@@ -260,11 +324,13 @@ public class ParameterizedSQLBatchWritingMechanism extends BatchWritingMechanism
     }
 
     public DatabaseCall getPreviousCall() {
-        return previousCall;
+        return previousCalls.peekLast();
     }
 
     public void setPreviousCall(DatabaseCall previousCall) {
-        this.previousCall = previousCall;
+        this.previousCalls.clear();
+        if( previousCall != null )
+            this.previousCalls.push( previousCall );
     }
 
     public List<List> getParameters() {
