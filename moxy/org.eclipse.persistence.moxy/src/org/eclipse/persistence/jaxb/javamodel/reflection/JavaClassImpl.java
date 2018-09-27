@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import javax.xml.bind.annotation.XmlTransient;
+
 /**
  * INTERNAL:
  * <p><b>Purpose:</b>A wrapper class for a JDK Class.  This implementation
@@ -355,7 +357,7 @@ public class JavaClassImpl implements JavaClass {
                 } else {
                     Class parent = null;
                     for(Class next:superInterfaces) {
-                        if(!(next.getName().startsWith("java.") || next.getName().startsWith("javax."))) {
+                        if(!(next.getName().startsWith("java.") || next.getName().startsWith("javax.") || next.isAnnotationPresent( XmlTransient.class ) )) {
                             if(parent == null) {
                                 parent = next;
                             } else {
