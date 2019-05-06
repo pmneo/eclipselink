@@ -205,13 +205,16 @@ public class SAXUnmarshallerHandler implements ExtendedContentHandler {
             Descriptor xmlDescriptor = xmlContext.getDescriptor(rootQName);
 
             //if no match on root element look for xsi:type
-            if(xmlDescriptor == null){
+            if (xmlDescriptor == null || (unmarshaller.getMediaType() == MediaType.APPLICATION_JSON && unmarshaller.getJsonTypeConfiguration().getJsonTypeAttributeName() != null &&
+                    !Constants.SCHEMA_TYPE_ATTRIBUTE.equals(unmarshaller.getJsonTypeConfiguration().getJsonTypeAttributeName()))) {
                 boolean isPrimitiveType = false;
                 String type = null;
                 if(xmlReader.isNamespaceAware()){
                     type = atts.getValue(javax.xml.XMLConstants.W3C_XML_SCHEMA_INSTANCE_NS_URI, Constants.SCHEMA_TYPE_ATTRIBUTE);
                 } else if (unmarshaller.getMediaType() != MediaType.APPLICATION_JSON || unmarshaller.getJsonTypeConfiguration().useJsonTypeCompatibility()) {
                     type = atts.getValue(Constants.EMPTY_STRING, Constants.SCHEMA_TYPE_ATTRIBUTE);
+                } else if (unmarshaller.getMediaType() == MediaType.APPLICATION_JSON && unmarshaller.getJsonTypeConfiguration().getJsonTypeAttributeName() != null) {
+                        type = atts.getValue(Constants.EMPTY_STRING, unmarshaller.getJsonTypeConfiguration().getJsonTypeAttributeName());
                 }
                 if (null != type) {
                     XPathFragment typeFragment = new XPathFragment(type, xmlReader.getNamespaceSeparator(), xmlReader.isNamespaceAware());
