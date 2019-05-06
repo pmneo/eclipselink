@@ -282,6 +282,15 @@ public class DirectCollectionMapping extends CollectionMapping implements Relati
         } else if (batchType == BatchFetchType.IN) {
             // Using a IN with foreign key values (WHERE FK IN :QUERY_BATCH_PARAMETER)
             batchSelectionCriteria = buildBatchCriteria(builder, query);
+            //bugfix for #17615
+            if (this.historyPolicy != null) {
+                if (query.getSession().getAsOfClause() != null) {
+                    builder.asOf(query.getSession().getAsOfClause());
+                } else if (builder.getAsOfClause() == null) {
+                    builder.asOf(AsOfClause.NO_CLAUSE);
+                }
+                batchSelectionCriteria = batchSelectionCriteria.and(this.historyPolicy.additionalHistoryExpression(builder, builder));
+            }
         } else {
             // For 2729729 must clone the original selection criteria first,
             // otherwise the original query will be corrupted.
