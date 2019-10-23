@@ -90,7 +90,7 @@ public class ConcurrentFixedCache implements Serializable {
                     Object next = iterator.next();
                     // Do not remove what was just put in.
                     if (next != key) {
-                        this.cache.remove(next);
+                        iterator.remove();
                     }
                 }
             } catch (Exception alreadyGone) {
