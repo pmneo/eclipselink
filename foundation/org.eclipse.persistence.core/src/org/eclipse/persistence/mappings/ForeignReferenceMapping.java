@@ -577,7 +577,41 @@ public abstract class ForeignReferenceMapping extends DatabaseMapping {
                 }
                 else if (size != rowsSize) {
                     // If only fetching a page, need to make sure the row we want is in the page.
-                    startIndex = parentRows.indexOf(sourceRow);
+                    startIndex = -1;
+                    //this will not work, because AbstractRecord does not implement the equals method! 
+                    //startIndex = parentRows.indexOf(sourceRow);
+                    
+                    @SuppressWarnings( "unchecked" )
+					final Set<DatabaseField> sourceFields = (Set<DatabaseField>)sourceRow.keySet();
+                    
+                    int idx = 0;
+                    for( AbstractRecord record : parentRows ) {
+                    	boolean valid = true;
+                    	
+                    	for( DatabaseField field : sourceFields ) {
+                    		Object sourceValue = sourceRow.get( field );
+                    		Object recordValue = record.get( field );
+                    		
+                    		if( sourceValue != null && recordValue != null ) {
+                    			if( sourceValue.equals( recordValue ) == false ) {
+                    				valid = false;
+                    				break;
+                    			}
+                    		}
+                    		else if( sourceValue != null || recordValue != null ) {
+                    			valid = false;
+                				break;
+                    		}
+                    	}
+                    	
+                    	if( valid ) {
+                    		startIndex = idx;
+                    		break;
+                    	}
+                    	else {
+                    		idx++;
+                    	}
+                    }
                 }
 
                 if( startIndex < 0 ) { //this may be a bug, so fake the result
