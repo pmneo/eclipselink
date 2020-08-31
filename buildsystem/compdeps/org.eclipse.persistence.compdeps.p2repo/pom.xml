@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
+    Copyright (c) 2018, 2020 Oracle and/or its affiliates. All rights reserved.
 
     This program and the accompanying materials are made available under the
     terms of the Eclipse Public License v. 2.0 which is available at
@@ -49,22 +49,99 @@
                         <goals>
                             <goal>copy</goal>
                         </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>jakarta.xml.bind</groupId>
+                                    <artifactId>jakarta.xml.bind-api</artifactId>
+                                    <version>${jakarta.xml.bind.version}</version>
+                                    <classifier>sources</classifier>
+                                </artifactItem>
+                            </artifactItems>
+                            <outputDirectory>${project.build.directory}/repository/plugins</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>copy-binaries-without-osgi-info</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.sun.xml.ws</groupId>
+                                    <artifactId>jaxws-rt</artifactId>
+                                    <version>${com.sun.xml.ws.version}</version>
+                                </artifactItem>
+                            </artifactItems>
+                            <outputDirectory>${project.build.directory}/repository/plugins</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>copy-oracle-binaries</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.oracle.ojdbc</groupId>
+                                    <artifactId>ojdbc8</artifactId>
+                                    <version>${oracle.jdbc.version}</version>
+                                    <destFileName>ojdbc.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.oracle.ojdbc</groupId>
+                                    <artifactId>orai18n</artifactId>
+                                    <version>${oracle.jdbc.version}</version>
+                                    <destFileName>orai18n.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.oracle.ojdbc</groupId>
+                                    <artifactId>xdb</artifactId>
+                                    <version>${oracle.jdbc.version}</version>
+                                    <destFileName>xdb.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.oracle.ojdbc</groupId>
+                                    <artifactId>xmlparserv2</artifactId>
+                                    <version>${oracle.jdbc.version}</version>
+                                    <destFileName>xmlparserv2.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.oracle.ojdbc</groupId>
+                                    <artifactId>ucp</artifactId>
+                                    <version>${oracle.jdbc.version}</version>
+                                    <destFileName>ucp.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.oracle.ojdbc</groupId>
+                                    <artifactId>dms</artifactId>
+                                    <version>${oracle.jdbc.version}</version>
+                                    <destFileName>dms.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>com.oracle.database.messaging</groupId>
+                                    <artifactId>aqapi</artifactId>
+                                    <version>${oracle.jdbc.version}</version>
+                                    <destFileName>aqapi.jar</destFileName>
+                                </artifactItem>
+                                <!--Oracle NoSQL DB-->
+                                <artifactItem>
+                                    <groupId>com.oracle.kv</groupId>
+                                    <artifactId>oracle-nosql-client</artifactId>
+                                    <version>${oracle.nosql.version}</version>
+                                    <destFileName>kvclient.jar</destFileName>
+                                </artifactItem>
+                            </artifactItems>
+                            <outputDirectory>${project.build.directory}/repository/oracle_plugins</outputDirectory>
+                        </configuration>
                     </execution>
                 </executions>
-                <configuration>
-                    <artifactItems>
-                        <artifactItem>
-                            <groupId>jakarta.xml.bind</groupId>
-                            <artifactId>jakarta.xml.bind-api</artifactId>
-                            <version>${jakarta.xml.bind.version}</version>
-                            <classifier>sources</classifier>
-                        </artifactItem>
-                    </artifactItems>
-                    <outputDirectory>${project.build.directory}/repository/plugins</outputDirectory>
-                </configuration>
             </plugin>
         </plugins>
     </build>
-
 </project>
 

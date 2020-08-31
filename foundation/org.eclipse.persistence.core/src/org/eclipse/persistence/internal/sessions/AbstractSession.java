@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 1998, 2018 IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020 IBM Corporation. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -298,6 +298,8 @@ public abstract class AbstractSession extends CoreAbstractSession<ClassDescripto
      */
     protected Integer pessimisticLockTimeoutDefault;
 
+    protected TimeUnit pessimisticLockTimeoutUnitDefault;
+
     protected int queryTimeoutDefault;
 
     protected TimeUnit queryTimeoutUnitDefault;
@@ -358,6 +360,7 @@ public abstract class AbstractSession extends CoreAbstractSession<ClassDescripto
     protected AbstractSession() {
         this.name = "";
         this.queryTimeoutUnitDefault = DescriptorQueryManager.DefaultTimeoutUnit;
+        this.pessimisticLockTimeoutUnitDefault = DescriptorQueryManager.DefaultTimeoutUnit;
         initializeIdentityMapAccessor();
         // PERF - move to lazy init (3286091)
     }
@@ -789,7 +792,7 @@ public abstract class AbstractSession extends CoreAbstractSession<ClassDescripto
                     // Give the failover time to recover.
                     Thread.currentThread().sleep(getLogin().getDelayBetweenConnectionAttempts());
                     Object[] args = new Object[1];
-                    args[0] = databaseException;
+                    args[0] = exceptionToThrow;
                     log(SessionLog.INFO, SessionLog.TRANSACTION, "communication_failure_attempting_begintransaction_retry", args, null);
                 } catch (InterruptedException intEx) {
                     break;
@@ -2319,6 +2322,10 @@ public abstract class AbstractSession extends CoreAbstractSession<ClassDescripto
      */
     public Integer getPessimisticLockTimeoutDefault() {
         return pessimisticLockTimeoutDefault;
+    }
+
+    public TimeUnit getPessimisticLockTimeoutUnitDefault() {
+        return pessimisticLockTimeoutUnitDefault;
     }
 
     /**
@@ -4127,6 +4134,10 @@ public abstract class AbstractSession extends CoreAbstractSession<ClassDescripto
      */
     public void setPessimisticLockTimeoutDefault(Integer pessimisticLockTimeoutDefault) {
         this.pessimisticLockTimeoutDefault = pessimisticLockTimeoutDefault;
+    }
+
+    public void setPessimisticLockTimeoutUnitDefault(TimeUnit pessimisticLockTimeoutUnitDefault) {
+        this.pessimisticLockTimeoutUnitDefault = pessimisticLockTimeoutUnitDefault;
     }
 
     /**

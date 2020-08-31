@@ -1,6 +1,5 @@
-/*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
- *
+/*******************************************************************************
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
  * http://www.eclipse.org/legal/epl-2.0,
@@ -20,6 +19,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Constructor;
 import java.security.AccessController;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -217,7 +217,7 @@ public class Oracle9Platform extends Oracle8Platform {
                 sqlXml.free();
             }
             // Oracle 12c appends a \n character to the xml string
-            return str.endsWith("\n") ? str.substring(0, str.length() - 1) : str;
+            return (str != null && str.endsWith("\n")) ? str.substring(0, str.length() - 1) : str; 
         } else if (type == OracleTypes.OPAQUE) {
             try {
                 Object result = resultSet.getObject(columnNumber);
@@ -559,6 +559,27 @@ public class Oracle9Platform extends Oracle8Platform {
             statement.setDate(index, Helper.truncateDateIgnoreMilliseconds((java.sql.Date)parameter));
         } else {
             super.setParameterValueInDatabaseCall(parameter, statement, index, session);
+        }
+    }
+
+    /**
+     *  INTERNAL:
+     *  Note that index (not index+1) is used in statement.setObject(index, parameter)
+     *    Binding starts with a 1 not 0, so make sure that index &gt; 0.
+     *  Treat Calendar separately. Bind Calendar as TIMESTAMPTZ.
+     */
+    @Override
+    public void setParameterValueInDatabaseCall(Object parameter, CallableStatement statement, String name, AbstractSession session) throws SQLException {
+        if (parameter instanceof Calendar) {
+            Calendar calendar = (Calendar)parameter;
+            Connection conn = getConnection(session, statement.getConnection());
+            TIMESTAMPTZ tsTZ = TIMESTAMPHelper.buildTIMESTAMPTZ(calendar, conn, this.shouldPrintCalendar);
+            statement.setObject(name, tsTZ);
+        } else if (this.shouldTruncateDate && parameter instanceof java.sql.Date) {
+            // hours, minutes, seconds all set to zero
+            statement.setDate(name, Helper.truncateDateIgnoreMilliseconds((java.sql.Date)parameter));
+        } else {
+            super.setParameterValueInDatabaseCall(parameter, statement, name, session);
         }
     }
 

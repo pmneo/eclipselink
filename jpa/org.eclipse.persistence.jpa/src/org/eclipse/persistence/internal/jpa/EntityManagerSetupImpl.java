@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 1998, 2018 IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 IBM Corporation. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -86,6 +86,8 @@
 //       - 529907: EntityManagerSetupImpl.addBeanValidationListeners() should fall back on old method for finding helperClass
 //     12/06/2018 - Will Dazey
 //       - 542491: Add new 'eclipselink.jdbc.force-bind-parameters' property to force enable binding
+//     09/02/2019-3.0 Alexandre Jacob
+//        - 527415: Fix code when locale is tr, az or lt
 package org.eclipse.persistence.internal.jpa;
 
 import static org.eclipse.persistence.config.PersistenceUnitProperties.DDL_GENERATION;
@@ -147,6 +149,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -2844,12 +2847,15 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
             if (!session.hasBroker()) {
                 updateAllowZeroIdSetting(m);
             }
+            updateAllowNULLMAXMINSetting(m);
             updateIdValidation(m);
             updatePessimisticLockTimeout(m);
+            updatePessimisticLockTimeoutUnit(m);
             updateQueryTimeout(m);
             updateQueryTimeoutUnit(m);
             updateLockingTimestampDefault(m);
             updateSQLCallDeferralDefault(m);
+            updateNamingIntoIndexed(m);
             if (!session.hasBroker()) {
                 updateCacheCoordination(m, loader);
             }
@@ -3475,6 +3481,23 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
     }
 
     /**
+     * Update the default pessimistic lock timeout unit value.
+     * @param persistenceProperties the properties map
+     */
+    protected void updatePessimisticLockTimeoutUnit(Map persistenceProperties) {
+        String pessimisticLockTimeoutUnit = EntityManagerFactoryProvider.getConfigPropertyAsStringLogDebug(PersistenceUnitProperties.PESSIMISTIC_LOCK_TIMEOUT_UNIT, persistenceProperties, session);
+
+        if (pessimisticLockTimeoutUnit != null) {
+            try {
+                TimeUnit unit = TimeUnit.valueOf(pessimisticLockTimeoutUnit);
+                session.setPessimisticLockTimeoutUnitDefault(unit);
+            } catch (NumberFormatException invalid) {
+                session.handleException(ValidationException.invalidValueForProperty(pessimisticLockTimeoutUnit, PersistenceUnitProperties.PESSIMISTIC_LOCK_TIMEOUT_UNIT, invalid));
+            }
+        }
+    }
+
+    /**
      * Enable or disable statements cached, update statements cache size.
      * The method needs to be called in deploy stage.
      */
@@ -3519,6 +3542,22 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
                 Helper.isZeroValidPrimaryKey = false;
             } else {
                 session.handleException(ValidationException.invalidBooleanValueForProperty(allowZero, PersistenceUnitProperties.ALLOW_ZERO_ID));
+            }
+        }
+    }
+
+    /**
+     * Enable or disable default allowing null return from MAX or MIN 
+     */
+    protected void updateAllowNULLMAXMINSetting(Map m) {
+        String allowNull = EntityManagerFactoryProvider.getConfigPropertyAsStringLogDebug(PersistenceUnitProperties.ALLOW_NULL_MAX_MIN, m, this.session);
+        if (allowNull != null) {
+            if (allowNull.equalsIgnoreCase("true")) {
+                session.getProject().setAllowNullResultMaxMin(true);
+            } else if (allowNull.equalsIgnoreCase("false")) {
+                session.getProject().setAllowNullResultMaxMin(false);
+            } else {
+                session.handleException(ValidationException.invalidBooleanValueForProperty(allowNull, PersistenceUnitProperties.ALLOW_NULL_MAX_MIN));
             }
         }
     }
@@ -3662,6 +3701,19 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
         }
     }
 
+    private void updateNamingIntoIndexed(Map persistenceProperties) {
+        String namingIntoIndexed = EntityManagerFactoryProvider.getConfigPropertyAsStringLogDebug(PersistenceUnitProperties.NAMING_INTO_INDEXED, persistenceProperties, this.session);
+        if (namingIntoIndexed != null) {
+            if (namingIntoIndexed.equalsIgnoreCase("true")) {
+                this.session.getProject().setNamingIntoIndexed(true);
+            } else if (namingIntoIndexed.equalsIgnoreCase("false")) {
+                this.session.getProject().setNamingIntoIndexed(false);
+            } else {
+                this.session.handleException(ValidationException.invalidBooleanValueForProperty(namingIntoIndexed, PersistenceUnitProperties.NAMING_INTO_INDEXED));
+            }
+        }
+    }
+
     /**
      * If Bean Validation is enabled, bootstraps Bean Validation on descriptors.
      * @param puProperties merged properties for this persistence unit
@@ -3717,7 +3769,7 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
         String validationModeAtEMFCreation = (String) puProperties.get(PersistenceUnitProperties.VALIDATION_MODE);
         if(validationModeAtEMFCreation != null) {
             // User will receive IllegalArgumentException if an invalid mode has been specified
-            return ValidationMode.valueOf(validationModeAtEMFCreation.toUpperCase());
+            return ValidationMode.valueOf(validationModeAtEMFCreation.toUpperCase(Locale.ROOT));
         }
 
         //otherwise:
@@ -4220,7 +4272,7 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
 
             if (hasConfigProperty(DDL_GENERATION, props)) {
                 // We have EclipseLink DDL generation properties.
-                String ddlGeneration = getConfigPropertyAsString(DDL_GENERATION, props).toLowerCase();
+                String ddlGeneration = getConfigPropertyAsString(DDL_GENERATION, props).toLowerCase(Locale.ROOT);
 
                 if (! ddlGeneration.equals(NONE)) {
                     writeDDL(ddlGeneration, props, session, classLoader);
@@ -4230,7 +4282,7 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
 
                 // Schema generation for the database.
                 if (hasConfigProperty(SCHEMA_GENERATION_DATABASE_ACTION, props)) {
-                    String databaseGenerationAction = getConfigPropertyAsString(SCHEMA_GENERATION_DATABASE_ACTION, props).toLowerCase();
+                    String databaseGenerationAction = getConfigPropertyAsString(SCHEMA_GENERATION_DATABASE_ACTION, props).toLowerCase(Locale.ROOT);
 
                     if (! databaseGenerationAction.equals(SCHEMA_GENERATION_NONE_ACTION)) {
                         if (databaseGenerationAction.equals(SCHEMA_GENERATION_CREATE_ACTION)) {
@@ -4251,7 +4303,7 @@ public class EntityManagerSetupImpl implements MetadataRefreshListener {
 
                 // Schema generation for target scripts.
                 if (hasConfigProperty(SCHEMA_GENERATION_SCRIPTS_ACTION, props)) {
-                    String scriptsGenerationAction = getConfigPropertyAsString(SCHEMA_GENERATION_SCRIPTS_ACTION, props).toLowerCase();
+                    String scriptsGenerationAction = getConfigPropertyAsString(SCHEMA_GENERATION_SCRIPTS_ACTION, props).toLowerCase(Locale.ROOT);
 
                     if (! scriptsGenerationAction.equals(SCHEMA_GENERATION_NONE_ACTION)) {
                         if (scriptsGenerationAction.equals(SCHEMA_GENERATION_CREATE_ACTION)) {

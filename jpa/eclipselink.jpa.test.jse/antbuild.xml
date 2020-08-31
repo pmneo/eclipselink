@@ -1,7 +1,7 @@
 <!--
 
-    Copyright (c) 2014, 2018 Oracle and/or its affiliates. All rights reserved.
-    Copyright (c) 2014, 2018 IBM and/or its affiliates. All rights reserved.
+    Copyright (c) 2014, 2020 Oracle and/or its affiliates. All rights reserved.
+    Copyright (c) 2014, 2019 IBM and/or its affiliates. All rights reserved.
 
     This program and the accompanying materials are made available under the
     terms of the Eclipse Public License v. 2.0 which is available at
@@ -42,20 +42,25 @@
     <property name="version.string"        value="${release.version}.${version.qualifier}"/>
 
     <!-- Not sure if there is a better way to refer to dependencies? -->
-    <property name="jse.eclipselink.jar" value="${jse.el.root}/eclipselink.jar"/>
-    <property name="javax.transaction" value="${jse.el.plugins.dir}/jakarta.transaction-api.jar"/>
-    <property name="javax.validation" value="${jse.el.plugins.dir}/jakarta.validation-api.jar"/>
-    <property name="javax.persistence" value="${jse.jpa.plugins.dir}/jakarta.persistence_2.2.2.jar"/>
-    <property name="jse.modelgen.jar" value="${jse.el.plugins.dir}/org.eclipse.persistence.jpa.modelgen_${version.string}.jar"/>
+    <property name="jse.eclipselink.jar" value="${jse.el.root}/${eclipselink.jar}"/>
+    <property name="javax.annotation" value="${jse.el.plugins.dir}/${annotation-api.jar}"/>
+    <property name="javax.transaction" value="${jse.el.plugins.dir}/${transaction.jar}"/>
+    <property name="javax.validation" value="${jse.el.plugins.dir}/${validation.jar}"/>
+    <property name="javax.persistence" value="${jse.jpa.plugins.dir}/${persistence22.jar}"/>
+
+    <fileset id="jse.antlr.jar.path" dir="${jse.el.plugins.dir}" includes="*antlr_*.jar"/>
+    <pathconvert property="jse.antlr.jar" refid="jse.antlr.jar.path"/>
+    <fileset id="jse.asm.jar.path" dir="${jse.el.plugins.dir}" includes="*asm_*.jar"/>
+    <pathconvert property="jse.asm.jar" refid="jse.asm.jar.path"/>
+    <property name="jse.core.jar" value="${jse.el.plugins.dir}/org.eclipse.persistence.core_${version.string}.jar"/>
+    <property name="jse.jpa.jar" value="${jse.el.plugins.dir}/org.eclipse.persistence.jpa_${version.string}.jar"/>
+    <property name="jse.jpql.jar" value="${jse.el.plugins.dir}/org.eclipse.persistence.jpa.jpql_${version.string}.jar"/>
+	<property name="jse.modelgen.jar" value="${jse.el.plugins.dir}/org.eclipse.persistence.jpa.modelgen_${version.string}.jar"/>
+	<property name="jse.dbws.jar" value="${jse.el.plugins.dir}/org.eclipse.persistence.dbws_${version.string}.jar"/>
 
     <!-- JVM used to run tests -->
     <property name="test.junit.jvm" value="${env.JAVA_HOME}"/>
     <property name="test.junit.jvm.exec" value="${test.junit.jvm}/bin/java"/>
-
-    <!-- JVM specific settings -->
-    <condition property="test.junit.jvm.modules.prop" value="-Dignore.modules=true" else="${test.junit.jvm.modules}">
-        <matches pattern="[1-8]\..*" string="${java.version}"/>
-    </condition>
 
     <path id="compile.jse.path">
         <pathelement path="${javax.persistence}" />
@@ -68,8 +73,13 @@
     <path id="run.jse.path">
         <pathelement path="${jse.classes.dir}" />
         <pathelement path="${javax.persistence}" />
-        <pathelement path="${jse.eclipselink.jar}" />
+        <pathelement path="${jse.antlr.jar}" />
+        <pathelement path="${jse.asm.jar}" />
+        <pathelement path="${jse.core.jar}" />
+        <pathelement path="${jse.jpa.jar}" />
+        <pathelement path="${jse.jpql.jar}" />
         <pathelement path="${jse.modelgen.jar}" />
+        <pathelement path="${jse.dbws.jar}" />
         <pathelement path="${javax.transaction}" />
         <pathelement path="${javax.validation}" />
         <pathelement path="${junit.lib}" />
@@ -103,10 +113,8 @@
         <property name="rmi" value="-Djava.naming.provider.url=rmi://localhost:${rmi.port} -Djava.naming.factory.initial=com.sun.jndi.rmi.registry.RegistryContextFactory"/>
         <junit jvm="${test.junit.jvm.exec}" printsummary="on" haltonfailure="false" failureproperty="fail" logfailedtests="true"
                fork="yes" dir="${jse.classes.dir}" forkmode="once">
-            <jvmarg line="${test.junit.jvm.modules.prop}"/>
             <jvmarg line="${additional.jvmargs} ${rmi}"/>
             <sysproperty key="additional.jvmargs" value="${additional.jvmargs}"/>
-            <sysproperty key="test.junit.jvm.modules" value="${test.junit.jvm.modules.prop}"/>
             <sysproperty key="javax.persistence.jdbc.url" value="${db.url}"/>
             <sysproperty key="javax.persistence.jdbc.driver" value="${db.driver}"/>
             <sysproperty key="javax.persistence.jdbc.user" value="${db.user}"/>

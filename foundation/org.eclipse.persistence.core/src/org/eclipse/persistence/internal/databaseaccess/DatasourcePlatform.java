@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020 IBM Corporation. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -534,6 +535,11 @@ public class DatasourcePlatform implements Platform {
     }
 
     @Override
+    public boolean isDB2Z() {
+        return false;
+    }
+
+    @Override
     public boolean isHANA() {
         return false;
     }
@@ -1044,5 +1050,13 @@ public class DatasourcePlatform implements Platform {
         Expression subExp1 = builder.getField(field);
         Expression subExp2 = builder.getParameter(field);
         return subExp1.equal(subExp2);
+    }
+
+    /**
+     * INTERNAL:
+     * Some database platforms have a limit for the number of parameters in an IN clause.
+     */
+    public int getINClauseLimit() {
+        return 0;
     }
 }

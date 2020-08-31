@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019 IBM Corporation. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -26,7 +27,8 @@
 //       - 456067 : Added support for defining query timeout units
 //     09/04/2018-3.0 Ravi Babu Tummuru
 //       - 538183: SETTING QUERYHINTS.CURSOR ON A NAMEDQUERY THROWS QUERYEXCEPTION
-
+//     09/02/2019-3.0 Alexandre Jacob
+//        - 527415: Fix code when locale is tr, az or lt
 package org.eclipse.persistence.internal.jpa;
 
 import java.security.AccessController;
@@ -35,6 +37,7 @@ import java.sql.Time;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -248,6 +251,7 @@ public class QueryHintsHandler {
             addHint(new PessimisticLockHint());
             addHint(new PessimisticLockScope());
             addHint(new PessimisticLockTimeoutHint());
+            addHint(new PessimisticLockTimeoutUnitHint());
             addHint(new RefreshHint());
             addHint(new CascadePolicyHint());
             addHint(new BatchHint());
@@ -396,7 +400,7 @@ public class QueryHintsHandler {
         }
 
         static String getUpperCaseString(Object hintValue) {
-            return hintValue != null ? hintValue.toString().toUpperCase() : null;
+            return hintValue != null ? hintValue.toString().toUpperCase(Locale.ROOT) : null;
         }
 
         static Class loadClass(String className, DatabaseQuery query, ClassLoader loader) throws QueryException {
@@ -446,7 +450,7 @@ public class QueryHintsHandler {
                         }
                     }
                 }
-                defaultValueToApply = valueMap.get(defaultValue.toUpperCase());
+                defaultValueToApply = valueMap.get(defaultValue.toUpperCase(Locale.ROOT));
             }
         }
 
@@ -808,6 +812,23 @@ public class QueryHintsHandler {
         DatabaseQuery applyToDatabaseQuery(Object valueToApply, DatabaseQuery query, ClassLoader loader, AbstractSession activeSession) {
             if (query.isObjectLevelReadQuery()) {
                 ((ObjectLevelReadQuery) query).setWaitTimeout(QueryHintsHandler.parseIntegerHint(valueToApply, QueryHints.PESSIMISTIC_LOCK_TIMEOUT));
+            } else {
+                throw new IllegalArgumentException(ExceptionLocalization.buildMessage("ejb30-wrong-type-for-query-hint",new Object[]{getQueryId(query), name, getPrintValue(valueToApply)}));
+            }
+
+            return query;
+        }
+    }
+
+    protected static class PessimisticLockTimeoutUnitHint extends Hint {
+        PessimisticLockTimeoutUnitHint() {
+            super(QueryHints.PESSIMISTIC_LOCK_TIMEOUT_UNIT, "");
+        }
+
+        DatabaseQuery applyToDatabaseQuery(Object valueToApply, DatabaseQuery query, ClassLoader loader, AbstractSession activeSession) {
+            if (query.isObjectLevelReadQuery()) {
+                TimeUnit unit = TimeUnit.valueOf((String)valueToApply);
+                ((ObjectLevelReadQuery) query).setWaitTimeoutUnit(unit);
             } else {
                 throw new IllegalArgumentException(ExceptionLocalization.buildMessage("ejb30-wrong-type-for-query-hint",new Object[]{getQueryId(query), name, getPrintValue(valueToApply)}));
             }
@@ -1908,6 +1929,7 @@ public class QueryHintsHandler {
 
         DatabaseQuery applyToDatabaseQuery(Object valueToApply, DatabaseQuery query, ClassLoader loader, AbstractSession activeSession) {
             query.setQueryTimeout(QueryHintsHandler.parseIntegerHint(valueToApply, QueryHints.QUERY_TIMEOUT));
+            query.setIsPrepared(false);
             return query;
         }
     }

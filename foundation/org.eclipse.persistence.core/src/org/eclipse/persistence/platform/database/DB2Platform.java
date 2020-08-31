@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 1998, 2018 IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2019 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019 IBM Corporation. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -69,6 +69,9 @@ public class DB2Platform extends org.eclipse.persistence.platform.database.Datab
 
     public DB2Platform() {
         super();
+        //com.ibm.db2.jcc.DB2Types.CURSOR
+        this.cursorCode = -100008;
+        this.shouldBindLiterals = false;
         this.pingSQL = "VALUES(1)";
     }
 
@@ -422,10 +425,14 @@ public class DB2Platform extends org.eclipse.persistence.platform.database.Datab
     }
 
     /**
-     * Used for sp calls.
+     * Obtain the platform specific argument string
      */
-    public String getProcedureArgumentSetter() {
-        return " => ";
+    @Override
+    public String getProcedureArgument(String name, Object parameter, Integer parameterType, StoredProcedureCall call, AbstractSession session) {
+        if (name != null && shouldPrintStoredProcedureArgumentNameInCall()) {
+            return getProcedureArgumentString() + name + " => " + "?";
+        }
+        return "?";
     }
 
     /**

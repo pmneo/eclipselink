@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 1998, 2018 IBM Corporation and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 IBM Corporation and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -233,8 +233,10 @@ public class PropertiesHandler {
             addProp(new BooleanProp(PersistenceUnitProperties.MULTITENANT_SHARED_EMF, "true"));
             //Enhancement
             addProp(new QueryTimeoutUnitProp());
+            addProp(new PessimisticLockTimeoutUnitProp());
             addProp(new BooleanProp(PersistenceUnitProperties.USE_LOCAL_TIMESTAMP, "false"));
             addProp(new BooleanProp(PersistenceUnitProperties.SQL_CALL_DEFERRAL, "true"));
+            addProp(new BooleanProp(PersistenceUnitProperties.NAMING_INTO_INDEXED, "false"));
         }
 
         Prop(String name) {
@@ -701,6 +703,17 @@ public class PropertiesHandler {
     protected static class QueryTimeoutUnitProp extends Prop {
         QueryTimeoutUnitProp() {
             super(PersistenceUnitProperties.QUERY_TIMEOUT_UNIT, DescriptorQueryManager.DefaultTimeoutUnit.toString());
+            valueArray = new Object[] {
+                TimeUnit.MILLISECONDS.toString(),
+                TimeUnit.SECONDS.toString(),
+                TimeUnit.MINUTES.toString()
+            };
+        }
+    }
+
+    protected static class PessimisticLockTimeoutUnitProp extends Prop {
+        PessimisticLockTimeoutUnitProp() {
+            super(PersistenceUnitProperties.PESSIMISTIC_LOCK_TIMEOUT_UNIT, DescriptorQueryManager.DefaultTimeoutUnit.toString());
             valueArray = new Object[] {
                 TimeUnit.MILLISECONDS.toString(),
                 TimeUnit.SECONDS.toString(),

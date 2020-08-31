@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1998, 2019 Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 1998, 2018 IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 IBM Corporation. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -2590,6 +2590,16 @@ public class PersistenceUnitProperties {
     public static final String ALLOW_ZERO_ID = "eclipselink.allow-zero-id";
 
     /**
+     * The "<code>eclipselink.allow-null-max-min</code>" property configures if zero
+     * is considered a valid return value for MAX/MIN aggregate functions. 
+     * 
+     * Section 4.8.5 of the JPA specification dictates this property must default 'true'.
+     *
+     * Default: "<code>true</code>".
+     */
+    public static final String ALLOW_NULL_MAX_MIN = "eclipselink.allow-null-max-min";
+
+    /**
      * The "<code>eclipselink.id-validation</code>" property defines
      * which primary key components values are considered invalid.
      * These values will be also overridden by sequencing.
@@ -3135,8 +3145,23 @@ public class PersistenceUnitProperties {
     public static final String PESSIMISTIC_LOCK_TIMEOUT = QueryHints.PESSIMISTIC_LOCK_TIMEOUT;
 
     /**
+     * The "<code>eclipselink.pessimistic.lock.timeout.unit</code>" property
+     * configures the query timeout unit value. Allows users more refinement.
+     * Used in combination with PersistenceUnitProperties.PESSIMISTIC_LOCK_TIMEOUT
+     * <p>
+     * <b>Allowed Values:</b>
+     * <ul>
+     * <li>"<code>java.util.concurrent.TimeUnit.MILLISECONDS</code>" (DEFAULT),
+     * <li>"<code>java.util.concurrent.TimeUnit.SECONDS</code>",
+     * <li>"<code>java.util.concurrent.TimeUnit.MINUTES</code>".
+     * </ul>
+     * @see #PESSIMISTIC_LOCK_TIMEOUT_UNIT
+    */
+    public static final String PESSIMISTIC_LOCK_TIMEOUT_UNIT = QueryHints.PESSIMISTIC_LOCK_TIMEOUT_UNIT;
+
+    /**
      * The "<code>javax.persistence.query.timeout</code>" property configures
-     * the default query timeout value. Defaults to seconds, but is configurable
+     * the default query timeout value. Defaults to milliseconds, but is configurable
      * with PersistenceUnitProperties.QUERY_TIMEOUT_UNIT
      * <p>
      * <b>Allowed Values:</b>
@@ -3154,8 +3179,8 @@ public class PersistenceUnitProperties {
      * <p>
      * <b>Allowed Values:</b>
      * <ul>
-     * <li>"<code>java.util.concurrent.TimeUnit.MILLISECONDS</code>",
-     * <li>"<code>java.util.concurrent.TimeUnit.SECONDS</code>" (DEFAULT),
+     * <li>"<code>java.util.concurrent.TimeUnit.MILLISECONDS</code>" (DEFAULT),
+     * <li>"<code>java.util.concurrent.TimeUnit.SECONDS</code>",
      * <li>"<code>java.util.concurrent.TimeUnit.MINUTES</code>".
      * </ul>
      * @see #QUERY_TIMEOUT
@@ -3836,6 +3861,29 @@ public class PersistenceUnitProperties {
      * </ul>
      */
     public static final String SQL_CALL_DEFERRAL = "eclipselink.jpa.sql-call-deferral";
+
+    /**
+     * The "<code>eclipselink.jpa.naming_into_indexed</code>" property defines if stored procedure parameters passed by name
+     * should be transformed into positional/index based passing if property value will be <code>true</code>. e.g.
+     * For stored procedure:
+     * <code>CREATE PROCEDURE test_stored_proc1( IN param1 TEXT, IN param2 INTEGER )</code>
+     * following Java call
+     * <code>query.registerStoredProcedureParameter( "param1",Integer.class,ParameterMode.IN );</code>
+     * <code>query.registerStoredProcedureParameter( "param2",String.class,ParameterMode.IN );</code>
+     * will be transformed into following e.g.
+     * <code>{call test_stored_proc1(10, 'abcd')}</code>
+     * instead of default
+     * <code>{call test_stored_proc1(param1 => 10, param2 => 'abcd')}</code>
+     * It's important to register parameters in Java in a same order as they specified in the stored procedure.
+     * This code was added there to ensure backward compatibility with older EclipseLink releases.
+     * <p>
+     * <b>Allowed Values</b> (String)<b>:</b>
+     * <ul>
+     * <li>"<code>false</code>" (DEFAULT)
+     * <li>"<code>true</code>"
+     * </ul>
+     */
+    public static final String NAMING_INTO_INDEXED = "eclipselink.jpa.naming_into_indexed";
 
     /**
      * INTERNAL: The following properties will not be displayed through logging

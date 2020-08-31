@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019 IBM Corporation. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -141,7 +142,7 @@ public abstract class DatasourceCall implements Call {
         return this.returnType == RETURN_MANY_ROWS;
     }
 
-    public boolean isOutputParameterType(Integer parameterType) {
+    public static boolean isOutputParameterType(Integer parameterType) {
         return (parameterType == OUT) || (parameterType == INOUT) || (parameterType == OUT_CURSOR);
     }
 
@@ -776,6 +777,11 @@ public abstract class DatasourceCall implements Call {
                         appendParameter(writer, value, session);
                     } else if (parameterType == INLINE) {
                         writer.write((String)parameter);
+                    } else if (parameterType == OUT || parameterType == OUT_CURSOR) {
+                        if (parameter instanceof DatabaseField) {
+                            parameter = null;
+                        }
+                        appendParameter(writer, parameter, session);
                     }
                     lastIndex = tokenIndex + 1;
                     parameterIndex++;

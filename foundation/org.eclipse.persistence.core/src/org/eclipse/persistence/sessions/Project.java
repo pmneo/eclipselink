@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -155,6 +155,9 @@ public class Project extends CoreProject<ClassDescriptor, Login, DatabaseSession
     /** Flag that allows call deferral to be disabled */
     protected boolean allowSQLDeferral = true;
 
+    /** Flag that allows transform named stored procedure parameters into positional/index based */
+    protected boolean namingIntoIndexed = false;
+
     /**
      * Mapped Superclasses (JPA 2) collection of parent non-relational descriptors keyed on MetadataClass
      * without creating a compile time dependency on JPA.
@@ -186,6 +189,8 @@ public class Project extends CoreProject<ClassDescriptor, Login, DatabaseSession
     /** used for Caching JPA projects */
     protected Collection<String> classNamesForWeaving;
     protected Collection<String> structConverters;
+
+    protected boolean allowNullResultMaxMin = true;
 
     /**
      * PUBLIC:
@@ -1302,10 +1307,26 @@ public class Project extends CoreProject<ClassDescriptor, Login, DatabaseSession
 
     /**
      * INTERNAL:
+     * Return true if Max/Min functions should return Null for this project.
+     */
+    public boolean allowNullResultMaxMin() {
+        return this.allowNullResultMaxMin;
+    }
+
+    /**
+     * INTERNAL:
      * Return true if SQL calls can defer to EOT on this project.
      */
     public boolean allowSQLDeferral() {
         return this.allowSQLDeferral;
+    }
+
+    /**
+     * INTERNAL:
+     * Return true is allowed to transform named stored procedure parameters into positional/index based.
+     */
+    public boolean namingIntoIndexed() {
+        return this.namingIntoIndexed;
     }
 
     /**
@@ -1349,10 +1370,26 @@ public class Project extends CoreProject<ClassDescriptor, Login, DatabaseSession
 
     /**
      * INTERNAL:
+     * Set whether Max/Min functions should return Null for this project.
+     */
+    public void setAllowNullResultMaxMin(boolean allowNullResultMaxMin) {
+        this.allowNullResultMaxMin = allowNullResultMaxMin;
+    }
+
+    /**
+     * INTERNAL:
      * Set whether sql deferral is allowed on this project
      */
     public void setAllowSQLDeferral(boolean allowSQLDeferral) {
         this.allowSQLDeferral = allowSQLDeferral;
+    }
+
+    /**
+     * INTERNAL:
+     * Set whether named stored procedure parameters is allowed to transform into positional/index based.
+     */
+    public void setNamingIntoIndexed(boolean namingIntoIndexed) {
+        this.namingIntoIndexed = namingIntoIndexed;
     }
 
     /**

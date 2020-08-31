@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 1998, 2018 IBM and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 IBM and/or its affiliates. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -525,8 +525,17 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
         SQLInsertStatement insertStatement = new SQLInsertStatement();
         insertStatement.setTable(table);
         insertStatement.setModifyRow(getModifyRow());
-        if (getDescriptor().hasReturningPolicy()) {
-            insertStatement.setReturnFields(getDescriptor().getReturningPolicy().getFieldsToGenerateInsert(table));
+        if (getDescriptor().hasReturningPolicies() && getDescriptor().getReturnFieldsToGenerateInsert() != null) {
+            // In case of RelationalDescriptor only return fields for current table must be used.
+            Vector<DatabaseField> returnFieldsForTable = new NonSynchronizedVector();
+            for (DatabaseField item: getDescriptor().getReturnFieldsToGenerateInsert()) {
+                if (table.equals(item.getTable())) {
+                    returnFieldsForTable.add(item);
+                }
+            }
+            if (!returnFieldsForTable.isEmpty()) {
+                insertStatement.setReturnFields(getDescriptor().getReturnFieldsToGenerateInsert());
+            }
         }
         insertStatement.setHintString(getQuery().getHintString());
         return insertStatement;
@@ -642,6 +651,9 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
         }
 
         items = reportQuery.getItems();
+
+		//from latest eclipse 2.7
+		//computeAndSetItemOffset(reportQuery, items, itemOffset);
         computeAndSetItemOffset(items, itemOffset, selectStatement.getFields().iterator() );
 
         return selectStatement;
@@ -729,11 +741,24 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
             if (attributeExpression.isExpressionBuilder()
                     && (item.getDescriptor().getQueryManager().getAdditionalJoinExpression() != null)
                     && !(clonedBuilder.wasAdditionJoinCriteriaUsed())) {
-                if (selectStatement.getWhereClause() == null ) {
-                    selectStatement.setWhereClause(item.getDescriptor().getQueryManager().getAdditionalJoinExpression().rebuildOn(clonedBuilder));
-                } else {
-                    selectStatement.setWhereClause(selectStatement.getWhereClause().and(item.getDescriptor().getQueryManager().getAdditionalJoinExpression().rebuildOn(clonedBuilder)));
+
+                //Clone the standard join expression set on the descriptor's QueryManager
+                Expression additionalJoinExpression = item.getDescriptor().getQueryManager().getAdditionalJoinExpression().rebuildOn(clonedBuilder);
+                Expression whereClause = selectStatement.getWhereClause();
+
+                //'shouldUseOuterJoin' should have been set during query parsing; see ObjectExpression.leftJoin()
+                //So we need to alter the additionalJoinExpression to account for NULL on the right side
+                if(((ExpressionBuilder)attributeExpression).shouldUseOuterJoin()) {
+                    additionalJoinExpression = additionalJoinExpression.or(attributeExpression.isNull());
                 }
+
+                if (whereClause == null ) {
+                    selectStatement.setWhereClause(additionalJoinExpression);
+                } else {
+                    selectStatement.setWhereClause(whereClause.and(additionalJoinExpression));
+                }
+
+                clonedBuilder.setWasAdditionJoinCriteriaUsed(true);
             }
             fieldExpressions.add(attributeExpression);
             if (item.hasJoining()){
@@ -812,8 +837,8 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
 
         updateStatement.setModifyRow(getModifyRow());
         updateStatement.setTranslationRow(getTranslationRow());
-        if (getDescriptor().hasReturningPolicy()) {
-            updateStatement.setReturnFields(getDescriptor().getReturningPolicy().getFieldsToGenerateUpdate(table));
+        if (getDescriptor().hasReturningPolicies() && getDescriptor().getReturnFieldsToGenerateUpdate() != null) {
+            updateStatement.setReturnFields(getDescriptor().getReturnFieldsToGenerateUpdate());
         }
         updateStatement.setTable(table);
         updateStatement.setWhereClause(getDescriptor().getObjectBuilder().buildUpdateExpression(table, getTranslationRow(), getModifyRow()));
@@ -2074,6 +2099,11 @@ public class ExpressionQueryMechanism extends StatementQueryMechanism {
                             setResult(null);
                             return;
                         }
+                    }
+                    // In some cases when expression starts with literal session is not set.
+                    // Like ....CONCAT('abcd', column)....
+                    if (baseExpression != null && (baseExpression instanceof ExpressionBuilder) && baseExpression.getSession() == null) {
+                        ((ExpressionBuilder) baseExpression).setSession(getSession());
                     }
                     DatabaseField field = dataExpression.getField();
                     if(field != null) {

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1998, 2018 Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 1998, 2018 IBM Corporation. All rights reserved.
+ * Copyright (c) 1998, 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020 IBM Corporation. All rights reserved.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -42,12 +42,14 @@ import java.util.Calendar;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Vector;
+import java.util.regex.Pattern;
 
 import org.eclipse.persistence.exceptions.DatabaseException;
 import org.eclipse.persistence.exceptions.ValidationException;
 import org.eclipse.persistence.expressions.Expression;
 import org.eclipse.persistence.expressions.ExpressionOperator;
 import org.eclipse.persistence.internal.databaseaccess.DatabaseCall;
+import org.eclipse.persistence.internal.databaseaccess.DatasourceCall;
 import org.eclipse.persistence.internal.databaseaccess.FieldTypeDefinition;
 import org.eclipse.persistence.internal.expressions.ExpressionSQLPrinter;
 import org.eclipse.persistence.internal.expressions.FunctionExpression;
@@ -67,6 +69,7 @@ import org.eclipse.persistence.queries.DatabaseQuery;
 import org.eclipse.persistence.queries.ObjectBuildingQuery;
 import org.eclipse.persistence.queries.ReadQuery;
 import org.eclipse.persistence.queries.SQLCall;
+import org.eclipse.persistence.queries.StoredProcedureCall;
 import org.eclipse.persistence.queries.ValueReadQuery;
 import org.eclipse.persistence.tools.schemaframework.TableDefinition;
 
@@ -98,6 +101,7 @@ public class OraclePlatform extends org.eclipse.persistence.platform.database.Da
 
     public OraclePlatform(){
         super();
+        this.cursorCode = -10;
         this.pingSQL = "SELECT 1 FROM DUAL";
         this.storedProcedureTerminationToken = "";
         this.shouldPrintForUpdateClause = true;
@@ -430,14 +434,6 @@ public class OraclePlatform extends org.eclipse.persistence.platform.database.Da
             }
         }
         return session.executeSelectingCall(new SQLCall(query));
-    }
-
-    /**
-     * Used for sp calls.
-     */
-    @Override
-    public String getProcedureArgumentSetter() {
-        return "=>";
     }
 
     /**
@@ -811,7 +807,16 @@ public class OraclePlatform extends org.eclipse.persistence.platform.database.Da
      */
     @Override
     public boolean shouldPrintStoredProcedureArgumentNameInCall() {
-        return ! useJDBCStoredProcedureSyntax();
+        return false;
+    }
+
+    @Override
+    public String getProcedureArgument(String name, Object parameter, Integer parameterType, 
+            StoredProcedureCall call, AbstractSession session) {
+        if(name != null && DatasourceCall.IN.equals(parameterType) && !call.usesBinding(session)) {
+            return name + "=>" + "?";
+        }
+        return "?";
     }
 
     /**
@@ -888,6 +893,11 @@ public class OraclePlatform extends org.eclipse.persistence.platform.database.Da
         return true;
     }
 
+    @Override
+    public boolean supportsWaitForUpdate() {
+        return true;
+    }
+
     /**
      * Returns true if the database supports SQL syntax not to wait on a SELECT..FOR UPADTE
      * (i.e. In Oracle adding NOWAIT to the end will accomplish this)
@@ -932,9 +942,9 @@ public class OraclePlatform extends org.eclipse.persistence.platform.database.Da
      */
     public boolean useJDBCStoredProcedureSyntax() {
         if (useJDBCStoredProcedureSyntax == null) {
-            useJDBCStoredProcedureSyntax = this.driverName != null && this.driverName.equals("Oracle");
+            useJDBCStoredProcedureSyntax = this.driverName != null 
+                    && Pattern.compile("Oracle", Pattern.CASE_INSENSITIVE).matcher(this.driverName).find();
         }
-
         return useJDBCStoredProcedureSyntax;
     }
 
@@ -1225,4 +1235,8 @@ public class OraclePlatform extends org.eclipse.persistence.platform.database.Da
         }
     }
 
+    @Override
+    public int getINClauseLimit() {
+        return 1000;
+    }
 }
