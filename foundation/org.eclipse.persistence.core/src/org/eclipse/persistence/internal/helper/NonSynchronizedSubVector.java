@@ -174,6 +174,11 @@ public class NonSynchronizedSubVector extends NonSynchronizedVector {
         return listIterator();
     }
 
+    @Override
+    public synchronized ListIterator listIterator() {
+    	return listIterator(0);
+    }
+    
     public ListIterator listIterator(final int index) {
         if (index<0 || index>size)
             throw new IndexOutOfBoundsException(
