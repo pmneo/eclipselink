@@ -14,14 +14,20 @@
 //     Oracle - initial API and implementation from Oracle TopLink
 package org.eclipse.persistence.sessions.server;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.persistence.internal.databaseaccess.*;
-import org.eclipse.persistence.sessions.Login;
-import org.eclipse.persistence.internal.helper.*;
-import org.eclipse.persistence.exceptions.*;
-import org.eclipse.persistence.internal.localization.*;
+import org.eclipse.persistence.exceptions.ConcurrencyException;
+import org.eclipse.persistence.exceptions.DatabaseException;
+import org.eclipse.persistence.exceptions.QueryException;
+import org.eclipse.persistence.internal.databaseaccess.Accessor;
+import org.eclipse.persistence.internal.helper.Helper;
+import org.eclipse.persistence.internal.localization.ToStringLocalization;
 import org.eclipse.persistence.logging.SessionLog;
+import org.eclipse.persistence.sessions.Login;
 
 /**
  * <p>
@@ -121,6 +127,8 @@ public class ConnectionPool {
         }
     }
 
+    private final AtomicInteger connecting = new AtomicInteger( 0 );
+    
     /**
      * INTERNAL:
      * Wait until a connection is available and allocate the connection for the client.
@@ -135,7 +143,7 @@ public class ConnectionPool {
 	            }
 	            
 	        	if( this.connectionsAvailable.isEmpty() ) {
-	        		if ((this.connectionsUsed.size() + this.connectionsAvailable.size()) < this.maxNumberOfConnections) {
+	        		if ((this.connectionsUsed.size() + this.connectionsAvailable.size() + this.connecting.get() ) < this.maxNumberOfConnections) {
 	        			//connect
 		                break;
 		            }
@@ -196,10 +204,14 @@ public class ConnectionPool {
         }
         
         
+    	this.connecting.incrementAndGet();
+    	
     	Accessor connection = null;
         try {
             connection = buildConnection();
         } catch (RuntimeException failed) {
+        	this.connecting.decrementAndGet();
+        	
             if (!this.failoverConnectionPools.isEmpty()) {
                 this.isDead = true;
                 this.timeOfDeath = System.currentTimeMillis();
@@ -211,6 +223,7 @@ public class ConnectionPool {
         }
         
         synchronized ( this ) {
+        	this.connecting.decrementAndGet();
         	this.connectionsUsed.add(connection);
         }
         
@@ -247,9 +260,9 @@ public class ConnectionPool {
 
     /**
      *  Return a list of the connections that are being used.
-     *  @return java.util.Vector
+     *  @return java.util.List
      **/
-    protected List<Accessor> getConnectionsUsed() {
+    public List<Accessor> getConnectionsUsed() {
         return connectionsUsed;
     }
 
@@ -387,8 +400,8 @@ public class ConnectionPool {
      * Reset the connections on shutDown and when the pool is started.
      */
     public void resetConnections() {
-        this.connectionsUsed = new Vector();
-        this.connectionsAvailable = new Vector();
+        this.connectionsUsed = new LinkedList<Accessor>();
+        this.connectionsAvailable = new LinkedList<Accessor>();
         this.checkConnections = false;
         this.isDead = false;
         this.timeOfDeath = 0;
@@ -407,7 +420,7 @@ public class ConnectionPool {
      *  Set this list of connections available
      *  @param connectionsAvailable
      */
-    protected void setConnectionsAvailable(Vector connectionsAvailable) {
+    public void setConnectionsAvailable(List<Accessor> connectionsAvailable) {
         this.connectionsAvailable = connectionsAvailable;
     }
 
@@ -416,7 +429,7 @@ public class ConnectionPool {
      *  Set the list of connections being used.
      *  @param connectionsUsed
      */
-    protected void setConnectionsUsed(Vector connectionsUsed) {
+    public void setConnectionsUsed( List<Accessor> connectionsUsed) {
         this.connectionsUsed = connectionsUsed;
     }
 
@@ -506,7 +519,7 @@ public class ConnectionPool {
     public synchronized void shutDown() {
         setIsConnected(false);
 
-        for (Iterator iterator = getConnectionsAvailable().iterator(); iterator.hasNext();) {
+        for (Iterator<Accessor> iterator = getConnectionsAvailable().iterator(); iterator.hasNext();) {
             try {
                 ((Accessor)iterator.next()).disconnect(getOwner());
             } catch (DatabaseException exception) {
@@ -514,7 +527,7 @@ public class ConnectionPool {
             }
         }
 
-        for (Iterator iterator = getConnectionsUsed().iterator(); iterator.hasNext();) {
+        for (Iterator<Accessor> iterator = getConnectionsUsed().iterator(); iterator.hasNext();) {
             try {
                 ((Accessor)iterator.next()).disconnect(getOwner());
             } catch (DatabaseException exception) {
