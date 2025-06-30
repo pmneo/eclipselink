@@ -174,7 +174,7 @@ public class ReportQueryResult implements Serializable, Map {
             int selector = exp.getOperator().getSelector();
             //a value of null for max/min implies no rows could be applied
             //we want to return null, per the spec, here before the mapping gets to alter the value
-            if(value == null && (((selector == ExpressionOperator.Maximum) 
+            if(value == null && (((selector == ExpressionOperator.Maximum)
                     || (selector == ExpressionOperator.Minimum))
                     && query.getSession().getProject().allowNullResultMaxMin())) {
                 return value;
@@ -306,6 +306,21 @@ public class ReportQueryResult implements Serializable, Map {
                 }
             } else {
                 value = row.getValues().get(itemIndex);
+
+                Class<?> resultType = item.getResultType();
+
+                if( resultType == Object.class && item.getAttributeExpression() != null && item.getAttributeExpression().isFunctionExpression() ) {
+                    resultType = ((FunctionExpression) item.getAttributeExpression() ).getResultType();
+                }
+
+                if( resultType != Object.class ) {
+                    try {
+                        value = query.session.getPlatform().convertObject(value, resultType );
+                    } catch (Throwable t) {
+                        //SILENT_CATCH
+                    }
+                }
+
                 // GF_ISSUE_395
                 if (this.key != null) {
                     this.key.append(value);
@@ -645,7 +660,7 @@ public class ReportQueryResult implements Serializable, Map {
             return new KeyIterator();
         }
         public boolean contains(Object object) {
-        return ReportQueryResult.this.containsKey(object);
+            return ReportQueryResult.this.containsKey(object);
         }
         public boolean remove(Object object) {
             return ReportQueryResult.this.remove(object) != null;
@@ -744,8 +759,8 @@ public class ReportQueryResult implements Serializable, Map {
      * Converts the ReportQueryResult to a simple array of values.
      */
     public Object[] toArray(){
-       List list = getResults();
-       return (list == null) ? null : list.toArray();
+        List list = getResults();
+        return (list == null) ? null : list.toArray();
     }
 
     /**
@@ -763,8 +778,8 @@ public class ReportQueryResult implements Serializable, Map {
             Object resultObj = getResults().get(index);
             writer.write(String.valueOf(resultObj));
             writer.write(" <"
-                         + (resultObj == null ? "null" : resultObj.getClass().getName())
-                         + ">");
+                    + (resultObj == null ? "null" : resultObj.getClass().getName())
+                    + ">");
             if (index < (getResults().size() - 1)) {
                 writer.write(", ");
             }
